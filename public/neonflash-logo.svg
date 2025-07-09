@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="neon-gradient" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19FB9B"/>
+      <stop offset="0.5" stop-color="#00B6E6"/>
+      <stop offset="1" stop-color="#BFFF0A"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Stylized N with lightning bolt negative space -->
+  <g filter="url(#glow)">
+    <path d="M28 100 L48 20 L72 70 L92 20 L72 100 Z" fill="url(#neon-gradient)"/>
+    <!-- Lightning bolt negative space -->
+    <path d="M56 45 L66 60 L60 60 L70 80" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg> 

@@ -1,0 +1,113 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_addressProvider",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "instructionData1",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "instructionData2",
+          "type": "bytes"
+        }
+      ],
+      "name": "flashLoanSimple",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "getNeonAddress",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getPayer",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastLoan",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastLoanFee",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x...",
+  "deployedBytecode": "0x...",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.26\"},\"language\":\"Solidity\",\"output\":{\"abi\":[...],\"devdoc\":{...},\"userdoc\":{...}},\"settings\":{...},\"sources\":{...},\"version\":1}",
+  "compiler": {
+    "version": "0.8.26"
+  },
+  "networks": {
+    "245022926": {
+      "address": "0x90cF15326EE0Ecd1849685F28Ac70BEcA10248E0",
+      "transactionHash": "0x..."
+    }
+  }
+} 
