@@ -13,32 +13,32 @@ import {
 import { NeonFlashLogo } from "@/components/ui/logo";
 
 const mockHistory = [
-  {
-    id: "1",
-    status: "success",
+    {
+      id: "1",
+      status: "success",
     token: "USDC",
     amount: 1000,
     profit: 12.34,
     date: "2024-06-01T14:23:00Z",
     hash: "0xabc123...7890",
     chain: "Neon EVM",
-  },
-  {
-    id: "2",
-    status: "failed",
+    },
+    {
+      id: "2",
+      status: "failed",
     token: "ETH",
     amount: 2.5,
     profit: -0.01,
     date: "2024-05-29T09:10:00Z",
     hash: "0xdef456...1234",
     chain: "Solana",
-  },
-  {
-    id: "3",
+    },
+    {
+      id: "3",
     status: "pending",
     token: "USDT",
     amount: 500,
-    profit: 0,
+      profit: 0,
     date: "2024-05-28T18:45:00Z",
     hash: "0xghi789...5678",
     chain: "Neon EVM",
@@ -46,29 +46,29 @@ const mockHistory = [
 ];
 
 function getStatusBadge(status: string) {
-  switch (status) {
-    case "success":
+    switch (status) {
+      case "success":
       return (
         <Badge className="bg-green-100 text-green-800 border-green-200">
           <CheckCircle className="inline h-4 w-4 mr-1 text-green-500" />
           Success
         </Badge>
       );
-    case "failed":
+      case "failed":
       return (
         <Badge className="bg-red-100 text-red-800 border-red-200">
           <XCircle className="inline h-4 w-4 mr-1 text-red-500" />
           Failed
         </Badge>
       );
-    case "pending":
+      case "pending":
       return (
         <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
           <Loader2 className="inline h-4 w-4 mr-1 animate-spin text-yellow-500" />
           Pending
         </Badge>
       );
-    default:
+      default:
       return <Badge>{status}</Badge>;
   }
 }
@@ -115,7 +115,7 @@ export default function History() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-muted">
                 <thead>
                   <tr className="text-left text-xs uppercase text-muted-foreground">

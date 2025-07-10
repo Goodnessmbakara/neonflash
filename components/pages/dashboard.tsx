@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, TrendingUp, DollarSign, Activity } from "lucide-react";
 import Link from "next/link";
+import { AirdropButton } from "@/components/ui/airdrop-button";
 
 export default function Dashboard() {
   return (
@@ -64,6 +65,7 @@ export default function Dashboard() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
+            <AirdropButton className="w-full justify-start" />
             <Button asChild className="w-full justify-start">
               <Link href="/flash-loan">Execute Flash Loan</Link>
             </Button>
@@ -72,7 +74,7 @@ export default function Dashboard() {
             </Button>
             <Button asChild variant="outline" className="w-full justify-start">
               <Link href="/history">Transaction History</Link>
-            </Button>
+              </Button>
           </CardContent>
         </Card>
 

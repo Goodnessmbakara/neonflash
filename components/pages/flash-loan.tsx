@@ -13,15 +13,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Zap, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  flashLoanService,
-  FlashLoanConfig,
-  FlashLoanResult,
-  TransactionStatus,
-} from "@/lib/flash-loan";
+import { FlashLoanResult, TransactionStatus } from "@/lib/flash-loan";
 import { FlashLoanTransactionStatus } from "@/components/transaction-status";
 import { useWallet } from "@/hooks/use-wallet";
 import { NeonFlashLogo } from "@/components/ui/logo";
+import { AirdropButton } from "@/components/ui/airdrop-button";
+import {
+  FlashLoanService,
+  FlashLoanStrategy,
+} from "@/lib/services/flash-loan-service";
+import { ethers } from "ethers";
 
 export default function FlashLoan() {
   const [amount, setAmount] = useState("");
@@ -31,9 +32,12 @@ export default function FlashLoan() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [flashLoanResult, setFlashLoanResult] =
     useState<FlashLoanResult | null>(null);
+  const [strategies, setStrategies] = useState<FlashLoanStrategy[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<string>("");
   const { toast } = useToast();
   const { isConnected, walletType, ethereumAddress, solanaAddress } =
     useWallet();
+  const flashLoanServiceRef = React.useRef<FlashLoanService | null>(null);
 
   const [arbitrageOpportunities, setArbitrageOpportunities] = useState<
     Array<{
@@ -61,10 +65,13 @@ export default function FlashLoan() {
           .map((t: any) => {
             const { token, neonPrice, solanaPrice } = t;
             if (!neonPrice || !solanaPrice) return null;
-            const diffPercent = ((neonPrice - solanaPrice) / ((neonPrice + solanaPrice) / 2)) * 100;
+            const diffPercent =
+              ((neonPrice - solanaPrice) / ((neonPrice + solanaPrice) / 2)) *
+              100;
             let direction: string | null = null;
             if (diffPercent > 0.5) direction = "Buy on Solana, Sell on Neon";
-            else if (diffPercent < -0.5) direction = "Buy on Neon, Sell on Solana";
+            else if (diffPercent < -0.5)
+              direction = "Buy on Neon, Sell on Solana";
             else direction = null;
             if (!direction) return null;
             return {
@@ -91,6 +98,27 @@ export default function FlashLoan() {
     return () => clearInterval(interval);
   }, []);
 
+  // Instantiate FlashLoanService when wallet is connected
+  useEffect(() => {
+    async function setupServiceAndFetchStrategies() {
+      if (typeof window === "undefined" || !isConnected || !window.ethereum) {
+        setStrategies([]);
+        setSelectedStrategy("");
+        flashLoanServiceRef.current = null;
+        return;
+      }
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      flashLoanServiceRef.current = new FlashLoanService(provider, signer);
+      const s = await flashLoanServiceRef.current.getStrategies();
+      setStrategies(s);
+      if (s.length > 0) setSelectedStrategy(s[0].id);
+    }
+    setupServiceAndFetchStrategies();
+  }, [isConnected]);
+
+  const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e"; // 245022926 in hex
+
   const handleExecute = async () => {
     if (!isConnected) {
       toast({
@@ -100,7 +128,6 @@ export default function FlashLoan() {
       });
       return;
     }
-
     if (!amount || parseFloat(amount) <= 0) {
       toast({
         title: "Invalid Amount",
@@ -109,21 +136,90 @@ export default function FlashLoan() {
       });
       return;
     }
-
+    if (!selectedStrategy) {
+      toast({
+        title: "No Strategy Selected",
+        description: "Please select an arbitrage strategy",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Enforce correct wallet and network for source chain
+    if (sourceChain === "neon") {
+      // Must use MetaMask and be on Neon Devnet
+      if (walletType !== "metamask") {
+        toast({
+          title: "Wrong Wallet",
+          description: "Please connect MetaMask for Neon EVM operations.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (typeof window !== "undefined" && window.ethereum) {
+        const chainId = await window.ethereum.request({
+          method: "eth_chainId",
+        });
+        if (chainId !== NEON_DEVNET_CHAIN_ID) {
+          toast({
+            title: "Wrong Network",
+            description:
+              "Please switch MetaMask to Neon Devnet before executing.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    } else if (sourceChain === "solana") {
+      // Must use Phantom for Solana
+      if (walletType !== "phantom") {
+        toast({
+          title: "Wrong Wallet",
+          description: "Please connect Phantom for Solana operations.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Optionally, check for Solana Devnet connection here
+    }
+    if (!flashLoanServiceRef.current) {
+      toast({
+        title: "Service Not Ready",
+        description: "Flash loan service is not initialized.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsExecuting(true);
     setFlashLoanResult(null);
-
     try {
-      const config: FlashLoanConfig = {
-        token,
-        amount,
-        sourceChain,
-        targetChain,
-      };
-
-      const result = await flashLoanService.executeFlashLoan(config);
-      setFlashLoanResult(result);
-
+      // Find the selected strategy object
+      const strategy = strategies.find((s) => s.id === selectedStrategy);
+      if (!strategy) throw new Error("Selected strategy not found");
+      const result = await flashLoanServiceRef.current.executeFlashLoan(
+        selectedStrategy,
+        ethers.parseUnits(amount, 6), // USDC decimals
+        strategy.estimatedProfit // Use strategy's slippage/estimation for now
+      );
+      setFlashLoanResult({
+        ...result,
+        steps: {
+          borrow: {
+            status: result.success ? "success" : "failed",
+            hash: result.transactionHash,
+            timestamp: Date.now(),
+          },
+          arbitrage: {
+            status: result.success ? "success" : "failed",
+            hash: result.transactionHash,
+            timestamp: Date.now(),
+          },
+          repay: {
+            status: result.success ? "success" : "failed",
+            hash: result.transactionHash,
+            timestamp: Date.now(),
+          },
+        },
+      });
       if (result.success) {
         toast({
           title: "Flash Loan Executed Successfully!",
@@ -144,7 +240,6 @@ export default function FlashLoan() {
         description: errorMessage,
         variant: "destructive",
       });
-
       setFlashLoanResult({
         success: false,
         error: errorMessage,
@@ -181,7 +276,9 @@ export default function FlashLoan() {
         <h1 className="text-3xl font-bold">Flash Loan</h1>
         <Badge variant="secondary">Beta</Badge>
       </div>
-
+      <div className="flex justify-end mb-2">
+        <AirdropButton />
+      </div>
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -249,6 +346,25 @@ export default function FlashLoan() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="strategy">Strategy</Label>
+              <Select
+                value={selectedStrategy}
+                onValueChange={setSelectedStrategy}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {strategies.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <Button

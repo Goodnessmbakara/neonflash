@@ -43,6 +43,17 @@ export function useWallet(): UseWalletReturn {
     // Check available wallets on mount
     checkAvailableWallets();
     
+    // Listen for network changes and refresh wallet state
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const handleChainChanged = () => {
+        autoConnect(); // Refresh wallet state on network change
+      };
+      window.ethereum.on('chainChanged', handleChainChanged);
+      return () => {
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+        unsubscribe();
+      };
+    }
     return unsubscribe;
   }, []);
 

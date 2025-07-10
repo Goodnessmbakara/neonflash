@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,6 +32,27 @@ import {
   Loader2,
 } from "lucide-react";
 
+const NEON_DEVNET_PARAMS = {
+  chainId: "0xeeb2e6e", // 245022926 in hex
+  chainName: "Neon Devnet",
+  rpcUrls: ["https://devnet.neonevm.org"],
+  nativeCurrency: { name: "Neon", symbol: "NEON", decimals: 18 },
+  blockExplorerUrls: ["https://neon-devnet.blockscout.com"],
+};
+
+function useNetworkStatus() {
+  const [chainId, setChainId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      window.ethereum.request({ method: "eth_chainId" }).then(setChainId);
+      const handler = (id: string) => setChainId(id);
+      window.ethereum.on("chainChanged", handler);
+      return () => window.ethereum.removeListener("chainChanged", handler);
+    }
+  }, []);
+  return chainId;
+}
+
 export default function WalletConnect() {
   const {
     isConnected,
@@ -50,6 +71,8 @@ export default function WalletConnect() {
 
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const chainId = useNetworkStatus();
+  const isNeonDevnet = chainId === NEON_DEVNET_PARAMS.chainId;
 
   // Copy address to clipboard
   const copyAddress = async (address: string, type: "Ethereum" | "Solana") => {
@@ -213,6 +236,55 @@ export default function WalletConnect() {
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* Network Status and Switch Button for MetaMask */}
+            {walletType === "metamask" && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Network
+                  </span>
+                  <Badge
+                    variant={isNeonDevnet ? "default" : "destructive"}
+                    className="text-xs"
+                  >
+                    {isNeonDevnet
+                      ? "Neon Devnet"
+                      : chainId
+                      ? `Chain: ${chainId}`
+                      : "Unknown"}
+                  </Badge>
+                </div>
+                {!isNeonDevnet && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <span className="text-xs text-red-500">
+                      Not on Neon Devnet
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await window.ethereum.request({
+                            method: "wallet_switchEthereumChain",
+                            params: [{ chainId: NEON_DEVNET_PARAMS.chainId }],
+                          });
+                        } catch (switchError: any) {
+                          if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                              method: "wallet_addEthereumChain",
+                              params: [NEON_DEVNET_PARAMS],
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      Switch to Neon Devnet
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
