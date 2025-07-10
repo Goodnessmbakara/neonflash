@@ -51,6 +51,33 @@ export default function FlashLoan() {
   const [arbitrageLoading, setArbitrageLoading] = useState(false);
   const [arbitrageError, setArbitrageError] = useState<string | null>(null);
 
+  const [filteredStrategies, setFilteredStrategies] = useState<
+    FlashLoanStrategy[]
+  >([]);
+
+  // When token changes, filter strategies
+  useEffect(() => {
+    if (token && strategies.length > 0) {
+      const filtered = strategies.filter((s) =>
+        s.name.toLowerCase().startsWith(token.toLowerCase())
+      );
+      setFilteredStrategies(filtered);
+      if (filtered.length > 0) setSelectedStrategy(filtered[0].id);
+    }
+  }, [token, strategies]);
+
+  // When strategy changes, update token to match strategy input
+  useEffect(() => {
+    if (selectedStrategy) {
+      const strategy = strategies.find((s) => s.id === selectedStrategy);
+      if (strategy) {
+        // Extract the first token from the strategy name (e.g., 'USDC → SAMO → USDC')
+        const firstToken = strategy.name.split(" ")[0].toLowerCase();
+        setToken(firstToken);
+      }
+    }
+  }, [selectedStrategy]);
+
   useEffect(() => {
     async function fetchPricesAndDetectArb() {
       setArbitrageLoading(true);
@@ -194,7 +221,24 @@ export default function FlashLoan() {
     try {
       // Find the selected strategy object
       const strategy = strategies.find((s) => s.id === selectedStrategy);
-      if (!strategy) throw new Error("Selected strategy not found");
+      if (!strategy) {
+        toast({
+          title: "Selected strategy not found",
+          description: "Please select a valid strategy.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const min = Number(ethers.formatUnits(strategy.minAmount, 6));
+      const max = Number(ethers.formatUnits(strategy.maxAmount, 6));
+      if (parseFloat(amount) < min || parseFloat(amount) > max) {
+        toast({
+          title: "Invalid Amount",
+          description: `Amount must be between ${min} and ${max} ${token.toUpperCase()}`,
+          variant: "destructive",
+        });
+        return;
+      }
       const result = await flashLoanServiceRef.current.executeFlashLoan(
         selectedStrategy,
         ethers.parseUnits(amount, 6), // USDC decimals
@@ -358,7 +402,7 @@ export default function FlashLoan() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {strategies.map((s) => (
+                  {filteredStrategies.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>

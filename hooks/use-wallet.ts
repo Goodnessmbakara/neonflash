@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { walletManager, WalletState, WalletConnection } from '@/lib/wallet';
+import { useToast } from '@/hooks/use-toast';
 
 export interface UseWalletReturn {
   // State
@@ -35,6 +36,7 @@ export function useWallet(): UseWalletReturn {
     metamask: false,
     phantom: false,
   });
+  const { toast } = useToast();
 
   // Subscribe to wallet state changes
   useEffect(() => {
@@ -87,9 +89,33 @@ export function useWallet(): UseWalletReturn {
   const connectPhantom = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
     try {
-      await walletManager.connectPhantom();
+      if (!window.solana || !window.solana.isPhantom) {
+        throw new Error('Phantom is not installed');
+      }
+      // Enforce Solana Devnet
+      if (window.solana.network !== 'devnet') {
+        toast({
+          title: 'Wrong Network',
+          description: 'Please switch Phantom to Solana Devnet before connecting.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        throw new Error('Phantom must be on Solana Devnet to connect.');
+      }
+      const response = await window.solana.connect();
+      const solanaAddress = response.publicKey.toString();
+      const ethereumAddress = await walletManager.deriveEthereumAddressFromSolana(solanaAddress);
+      walletManager.updateState({
+        isConnected: true,
+        walletType: 'phantom',
+        ethereumAddress,
+        solanaAddress,
+        ethereumProvider: null,
+        solanaProvider: window.solana,
+      });
+      window.solana.on('accountChanged', walletManager.handleAccountChange.bind(walletManager));
+      window.solana.on('disconnect', walletManager.handleDisconnect.bind(walletManager));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to connect Phantom';
       setError(errorMessage);
@@ -97,7 +123,7 @@ export function useWallet(): UseWalletReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   // Disconnect wallet
   const disconnect = useCallback(() => {

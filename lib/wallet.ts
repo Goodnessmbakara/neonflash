@@ -71,7 +71,37 @@ class WalletManager {
       if (!window.ethereum || !window.ethereum.isMetaMask) {
         throw new Error('MetaMask is not installed');
       }
-
+      // Enforce Neon Devnet
+      const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e"; // 245022926 in hex
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (chainId !== NEON_DEVNET_CHAIN_ID) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: NEON_DEVNET_CHAIN_ID }],
+          });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: NEON_DEVNET_CHAIN_ID,
+                chainName: 'Neon Devnet',
+                rpcUrls: ['https://devnet.neonevm.org'],
+                nativeCurrency: { name: 'Neon', symbol: 'NEON', decimals: 18 },
+                blockExplorerUrls: ['https://neon-devnet.blockscout.com'],
+              }],
+            });
+          } else {
+            throw new Error('Please switch to Neon Devnet to connect.');
+          }
+        }
+        // After switching, re-check the chainId
+        const newChainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (newChainId !== NEON_DEVNET_CHAIN_ID) {
+          throw new Error('Network switch failed or was cancelled.');
+        }
+      }
       // Request account access
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
@@ -119,7 +149,13 @@ class WalletManager {
       if (!window.solana || !window.solana.isPhantom) {
         throw new Error('Phantom is not installed');
       }
-
+      // Enforce Solana Devnet
+      const SOLANA_DEVNET_CHAIN = "devnet";
+      if (window.solana.network !== SOLANA_DEVNET_CHAIN) {
+        // Phantom does not support programmatic network switching, so prompt user
+        alert('Please switch Phantom to Solana Devnet before connecting.');
+        throw new Error('Phantom must be on Solana Devnet to connect.');
+      }
       // Connect to Phantom
       const response = await window.solana.connect();
       const solanaAddress = response.publicKey.toString();
