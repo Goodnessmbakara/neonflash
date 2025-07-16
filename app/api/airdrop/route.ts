@@ -93,6 +93,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (chain === 'neon-usdc') {
+      // USDC airdrop for Neon EVM
+      try {
+        const rpcUrl = CONFIG.networks.ethereum.devnet.rpcUrl;
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        
+        // Create a signer (this would need to be a funded account in production)
+        // For now, we'll use a simple approach
+        const usdcContractAddress = '0x146c38c2E36D34Ed88d843E013677cCe72341794';
+        
+        // Note: In a real implementation, you'd need a funded account to mint USDC
+        // For now, we'll return a message indicating the user needs to get USDC elsewhere
+        return NextResponse.json({ 
+          success: false, 
+          message: 'USDC airdrop not available. Please get USDC from a DEX or faucet.',
+          usdcContractAddress 
+        });
+      } catch (error: any) {
+        console.error('USDC airdrop error:', error);
+        return NextResponse.json({ 
+          error: error.message || 'USDC airdrop failed' 
+        }, { status: 500 });
+      }
+    }
+
     if (chain === 'solana') {
       // Solana devnet airdrop
       const { Connection, PublicKey, clusterApiUrl } = await import('@solana/web3.js');

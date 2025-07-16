@@ -255,14 +255,19 @@ export default function FlashLoan() {
 
         // Get and log the EVM address being used
         const userEvmAddress = await signer.getAddress();
-        console.log(
-          "[DEBUG] Using EVM address for flash loan:",
-          userEvmAddress
-        );
-        console.log(
-          "[DEBUG] User Solana address (if connected):",
-          solanaAddress
-        );
+        console.log('[DEBUG] Using EVM address for flash loan:', userEvmAddress);
+        console.log('[DEBUG] User Solana address (if connected):', solanaAddress);
+
+        // Verify USDC contract is accessible
+        const isUSDCContractAccessible = await contractSetup.verifyUSDCContract();
+        if (!isUSDCContractAccessible) {
+          toast({
+            title: "USDC Contract Not Accessible",
+            description: "Unable to access USDC contract on Neon EVM. Please check your network connection.",
+            variant: "destructive",
+          });
+          return;
+        }
 
         // Check if user has sufficient balance for flash loan fee
         const hasBalance = await contractSetup.checkUserBalanceForFee(
@@ -272,9 +277,9 @@ export default function FlashLoan() {
 
         if (!hasBalance) {
           toast({
-            title: "Insufficient Balance",
+            title: "Insufficient USDC Balance",
             description:
-              "You need USDC to pay flash loan fees. Get test USDC from the airdrop button.",
+              "You need USDC tokens on Neon EVM to pay flash loan fees. Use the airdrop button to get test USDC, or ensure you have USDC in your wallet.",
             variant: "destructive",
           });
           return;

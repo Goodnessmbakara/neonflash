@@ -59,20 +59,75 @@ export function AirdropButton({ className = "" }: { className?: string }) {
     }
   };
 
+  const handleUSDCAirdrop = async () => {
+    if (!isConnected || walletType !== "phantom") {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Connect your Phantom wallet to receive USDC",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/airdrop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: ethereumAddress, chain: "neon-usdc" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || "USDC airdrop failed");
+      }
+      toast({
+        title: "USDC Airdrop Successful!",
+        description: "USDC tokens sent to your Neon EVM wallet.",
+      });
+    } catch (e: any) {
+      toast({
+        title: "USDC Airdrop Failed",
+        description:
+          e.message ||
+          "Could not airdrop USDC. You may need to get USDC from a DEX.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <Button
-      onClick={handleAirdrop}
-      disabled={loading}
-      variant="outline"
-      className={className}
-      title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
-    >
-      {loading ? (
-        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-      ) : (
-        <Gift className="h-4 w-4 mr-2" />
+    <div className="flex gap-2">
+      <Button
+        onClick={handleAirdrop}
+        disabled={loading}
+        variant="outline"
+        className={className}
+        title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
+      >
+        {loading ? (
+          <Loader2 className="animate-spin h-4 w-4 mr-2" />
+        ) : (
+          <Gift className="h-4 w-4 mr-2" />
+        )}
+        Airdrop Gas
+      </Button>
+      {walletType === "phantom" && (
+        <Button
+          onClick={handleUSDCAirdrop}
+          disabled={loading}
+          variant="outline"
+          className={className}
+          title="Get USDC tokens for flash loan fees"
+        >
+          {loading ? (
+            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+          ) : (
+            <Gift className="h-4 w-4 mr-2" />
+          )}
+          Get USDC
+        </Button>
       )}
-      Airdrop Test Gas
-    </Button>
+    </div>
   );
 }

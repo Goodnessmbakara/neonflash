@@ -51,6 +51,26 @@ export class ContractSetupService {
   }
 
   /**
+   * Verify USDC contract is accessible
+   */
+  async verifyUSDCContract(): Promise<boolean> {
+    try {
+      console.log("[DEBUG] Verifying USDC contract accessibility");
+      const contractAddress = await this.usdcContract.getAddress();
+      console.log("[DEBUG] USDC contract address:", contractAddress);
+      
+      // Try to get total supply to verify contract is working
+      const totalSupply = await this.usdcContract.totalSupply();
+      console.log("[DEBUG] USDC total supply:", totalSupply.toString());
+      
+      return true;
+    } catch (error) {
+      console.error("[DEBUG] Error verifying USDC contract:", error);
+      return false;
+    }
+  }
+
+  /**
    * Get contract's current USDC balance
    */
   async getContractBalance(): Promise<bigint> {
@@ -62,21 +82,58 @@ export class ContractSetupService {
    * Get user's USDC balance
    */
   async getUserBalance(userAddress: string): Promise<bigint> {
-    return await this.usdcContract.balanceOf(userAddress);
+    try {
+      console.log("[DEBUG] Getting USDC balance for address:", userAddress);
+      console.log("[DEBUG] USDC contract address:", await this.usdcContract.getAddress());
+      
+      // Check if the address is valid
+      if (!userAddress || userAddress === '0x0000000000000000000000000000000000000000') {
+        console.log("[DEBUG] Invalid address provided");
+        return BigInt(0);
+      }
+
+      const balance = await this.usdcContract.balanceOf(userAddress);
+      console.log("[DEBUG] USDC balance result:", balance.toString());
+      return balance;
+    } catch (error) {
+      console.error("[DEBUG] Error getting USDC balance:", error);
+      
+      // If the error is about empty data, it likely means the user has no USDC
+      if (error instanceof Error && error.message.includes('could not decode result data')) {
+        console.log("[DEBUG] User likely has no USDC tokens on Neon EVM");
+        return BigInt(0);
+      }
+      
+      throw error;
+    }
   }
 
   /**
    * Check if user has sufficient balance for flash loan fee
    */
   async checkUserBalanceForFee(userAddress: string, flashLoanAmount: bigint): Promise<boolean> {
-    // Log the Ethereum address being checked
-    console.log("[DEBUG] Checking USDC balance for EVM address:", userAddress);
-    const userBalance = await this.getUserBalance(userAddress);
-    console.log("[DEBUG] USDC balance for", userAddress, "is", userBalance.toString());
-    const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
-    const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
-    
-    return userBalance >= requiredBalance;
+    try {
+      // Log the Ethereum address being checked
+      console.log("[DEBUG] Checking USDC balance for EVM address:", userAddress);
+      
+      const userBalance = await this.getUserBalance(userAddress);
+      console.log("[DEBUG] USDC balance for", userAddress, "is", userBalance.toString());
+      
+      const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
+      const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
+      
+      console.log("[DEBUG] Required balance:", requiredBalance.toString());
+      console.log("[DEBUG] Fee amount:", feeAmount.toString());
+      
+      const hasSufficientBalance = userBalance >= requiredBalance;
+      console.log("[DEBUG] Has sufficient balance:", hasSufficientBalance);
+      
+      return hasSufficientBalance;
+    } catch (error) {
+      console.error("[DEBUG] Error in checkUserBalanceForFee:", error);
+      // If we can't check the balance, assume insufficient
+      return false;
+    }
   }
 
   /**
