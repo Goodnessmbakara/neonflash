@@ -495,12 +495,27 @@ class WalletManager {
     try {
       // Check if MetaMask was previously connected
       if (await this.checkMetaMask() && window.ethereum.selectedAddress) {
-        return await this.connectMetaMask();
+        // Check network before connecting
+        const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e";
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId === NEON_DEVNET_CHAIN_ID) {
+          return await this.connectMetaMask();
+        } else {
+          console.log('MetaMask not on Neon Devnet, skipping auto-connect');
+          return null;
+        }
       }
 
       // Check if Phantom was previously connected
       if (await this.checkPhantom() && window.solana.isConnected) {
-        return await this.connectPhantom();
+        // Check network before connecting
+        const SOLANA_DEVNET_CHAIN = "devnet";
+        if (window.solana.network === SOLANA_DEVNET_CHAIN) {
+          return await this.connectPhantom();
+        } else {
+          console.log('Phantom not on Solana Devnet, skipping auto-connect');
+          return null;
+        }
       }
 
       return null;
