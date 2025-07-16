@@ -26,26 +26,38 @@ export class ContractSetupService {
    */
   async ensureContractBalance(minBalance: bigint = ethers.parseUnits('1000000', 6)): Promise<boolean> {
     try {
+      console.log('=== CONTRACT BALANCE SETUP START ===');
       const contractAddress = await this.flashLoanContract.getAddress();
-      const currentBalance = await this.usdcContract.balanceOf(contractAddress);
+      console.log(`[CONTRACT] Flash Loan Contract Address: ${contractAddress}`);
+      console.log(`[CONTRACT] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
+      console.log(`[CONTRACT] Minimum Required Balance: ${ethers.formatUnits(minBalance, 6)} USDC`);
       
-      console.log(`Contract USDC balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
+      const currentBalance = await this.usdcContract.balanceOf(contractAddress);
+      console.log(`[CONTRACT] Current Contract USDC Balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
       
       if (currentBalance < minBalance) {
-        console.log(`Contract balance insufficient. Transferring ${ethers.formatUnits(minBalance - currentBalance, 6)} USDC...`);
+        const transferAmount = minBalance - currentBalance;
+        console.log(`[CONTRACT] Contract balance insufficient. Transferring ${ethers.formatUnits(transferAmount, 6)} USDC...`);
         
         // Transfer USDC to contract
-        const tx = await this.usdcContract.transfer(contractAddress, minBalance - currentBalance);
+        const tx = await this.usdcContract.transfer(contractAddress, transferAmount);
+        console.log(`[CONTRACT] Transfer transaction hash: ${tx.hash}`);
+        console.log(`[CONTRACT] Waiting for transaction confirmation...`);
+        
         await tx.wait();
         
-        console.log('USDC transferred to contract successfully');
+        const newBalance = await this.usdcContract.balanceOf(contractAddress);
+        console.log(`[CONTRACT] New contract balance: ${ethers.formatUnits(newBalance, 6)} USDC`);
+        console.log('=== CONTRACT BALANCE SETUP COMPLETE ===');
         return true;
       }
       
-      console.log('Contract has sufficient USDC balance');
+      console.log(`[CONTRACT] Contract has sufficient USDC balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
+      console.log('=== CONTRACT BALANCE SETUP COMPLETE ===');
       return true;
     } catch (error) {
-      console.error('Error ensuring contract balance:', error);
+      console.error('=== CONTRACT BALANCE SETUP FAILED ===');
+      console.error('Error details:', error);
       throw error;
     }
   }
@@ -55,17 +67,25 @@ export class ContractSetupService {
    */
   async verifyUSDCContract(): Promise<boolean> {
     try {
-      console.log("[DEBUG] Verifying USDC contract accessibility");
+      console.log('=== USDC CONTRACT VERIFICATION START ===');
       const contractAddress = await this.usdcContract.getAddress();
-      console.log("[DEBUG] USDC contract address:", contractAddress);
+      console.log(`[USDC] Contract Address: ${contractAddress}`);
       
       // Try to get total supply to verify contract is working
       const totalSupply = await this.usdcContract.totalSupply();
-      console.log("[DEBUG] USDC total supply:", totalSupply.toString());
+      console.log(`[USDC] Total Supply: ${ethers.formatUnits(totalSupply, 6)} USDC`);
       
+      // Try to get name and symbol
+      const name = await this.usdcContract.name();
+      const symbol = await this.usdcContract.symbol();
+      console.log(`[USDC] Token Name: ${name}`);
+      console.log(`[USDC] Token Symbol: ${symbol}`);
+      
+      console.log('=== USDC CONTRACT VERIFICATION COMPLETE ===');
       return true;
     } catch (error) {
-      console.error("[DEBUG] Error verifying USDC contract:", error);
+      console.error('=== USDC CONTRACT VERIFICATION FAILED ===');
+      console.error('Error details:', error);
       return false;
     }
   }
@@ -75,7 +95,9 @@ export class ContractSetupService {
    */
   async getContractBalance(): Promise<bigint> {
     const contractAddress = await this.flashLoanContract.getAddress();
-    return await this.usdcContract.balanceOf(contractAddress);
+    const balance = await this.usdcContract.balanceOf(contractAddress);
+    console.log(`[CONTRACT] Contract balance: ${ethers.formatUnits(balance, 6)} USDC`);
+    return balance;
   }
 
   /**
@@ -83,24 +105,29 @@ export class ContractSetupService {
    */
   async getUserBalance(userAddress: string): Promise<bigint> {
     try {
-      console.log("[DEBUG] Getting USDC balance for address:", userAddress);
-      console.log("[DEBUG] USDC contract address:", await this.usdcContract.getAddress());
+      console.log('=== USER BALANCE CHECK START ===');
+      console.log(`[USER] Address: ${userAddress}`);
+      console.log(`[USER] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
       
       // Check if the address is valid
       if (!userAddress || userAddress === '0x0000000000000000000000000000000000000000') {
-        console.log("[DEBUG] Invalid address provided");
+        console.log(`[USER] Invalid address provided: ${userAddress}`);
         return BigInt(0);
       }
 
+      console.log(`[USER] Calling balanceOf(${userAddress})...`);
       const balance = await this.usdcContract.balanceOf(userAddress);
-      console.log("[DEBUG] USDC balance result:", balance.toString());
+      console.log(`[USER] Raw balance result: ${balance.toString()}`);
+      console.log(`[USER] Formatted balance: ${ethers.formatUnits(balance, 6)} USDC`);
+      console.log('=== USER BALANCE CHECK COMPLETE ===');
       return balance;
     } catch (error) {
-      console.error("[DEBUG] Error getting USDC balance:", error);
+      console.error('=== USER BALANCE CHECK FAILED ===');
+      console.error('Error details:', error);
       
       // If the error is about empty data, it likely means the user has no USDC
       if (error instanceof Error && error.message.includes('could not decode result data')) {
-        console.log("[DEBUG] User likely has no USDC tokens on Neon EVM");
+        console.log(`[USER] User likely has no USDC tokens on Neon EVM (empty data response)`);
         return BigInt(0);
       }
       
@@ -113,24 +140,28 @@ export class ContractSetupService {
    */
   async checkUserBalanceForFee(userAddress: string, flashLoanAmount: bigint): Promise<boolean> {
     try {
-      // Log the Ethereum address being checked
-      console.log("[DEBUG] Checking USDC balance for EVM address:", userAddress);
+      console.log('=== USER FEE BALANCE CHECK START ===');
+      console.log(`[FEE] User EVM Address: ${userAddress}`);
+      console.log(`[FEE] Flash Loan Amount: ${ethers.formatUnits(flashLoanAmount, 6)} USDC`);
       
       const userBalance = await this.getUserBalance(userAddress);
-      console.log("[DEBUG] USDC balance for", userAddress, "is", userBalance.toString());
+      console.log(`[FEE] User USDC Balance: ${ethers.formatUnits(userBalance, 6)} USDC`);
       
       const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
       const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
       
-      console.log("[DEBUG] Required balance:", requiredBalance.toString());
-      console.log("[DEBUG] Fee amount:", feeAmount.toString());
+      console.log(`[FEE] Flash Loan Fee (0.05%): ${ethers.formatUnits(feeAmount, 6)} USDC`);
+      console.log(`[FEE] Required Balance (Fee + 1 USDC buffer): ${ethers.formatUnits(requiredBalance, 6)} USDC`);
       
       const hasSufficientBalance = userBalance >= requiredBalance;
-      console.log("[DEBUG] Has sufficient balance:", hasSufficientBalance);
+      console.log(`[FEE] Has sufficient balance: ${hasSufficientBalance}`);
+      console.log(`[FEE] Balance comparison: ${ethers.formatUnits(userBalance, 6)} >= ${ethers.formatUnits(requiredBalance, 6)}`);
       
+      console.log('=== USER FEE BALANCE CHECK COMPLETE ===');
       return hasSufficientBalance;
     } catch (error) {
-      console.error("[DEBUG] Error in checkUserBalanceForFee:", error);
+      console.error('=== USER FEE BALANCE CHECK FAILED ===');
+      console.error('Error details:', error);
       // If we can't check the balance, assume insufficient
       return false;
     }

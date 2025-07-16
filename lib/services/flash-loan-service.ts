@@ -103,33 +103,87 @@ export class FlashLoanService {
     solanaProvider?: any // Phantom wallet
   ): Promise<FlashLoanResult> {
     try {
+      console.log('=== FLASH LOAN EXECUTION START ===');
+      console.log(`[STEP 1] Strategy ID: ${strategyId}`);
+      console.log(`[STEP 1] Amount: ${ethers.formatUnits(amount, 6)} USDC`);
+      console.log(`[STEP 1] Slippage Tolerance: ${slippageTolerance}%`);
+      
+      // Get user's wallet address for balance checking
+      const userAddress = await this.signer.getAddress();
+      console.log(`[STEP 1] User Wallet Address (EVM): ${userAddress}`);
+      
+      // Check USDC balance before execution
+      console.log(`[STEP 1] Checking USDC balance for address: ${userAddress}`);
+      const balance = await this.checkBalance(userAddress);
+      console.log(`[STEP 1] USDC Balance: ${ethers.formatUnits(balance, 6)} USDC`);
+      
+      // Calculate required fee
+      const fee = await this.getFlashLoanFee();
+      const feeAmount = (amount * fee) / BigInt(10000);
+      console.log(`[STEP 1] Flash Loan Fee: ${ethers.formatUnits(feeAmount, 6)} USDC (${fee} basis points)`);
+      
+      if (balance < feeAmount) {
+        console.log(`[STEP 1] INSUFFICIENT BALANCE: Need ${ethers.formatUnits(feeAmount, 6)} USDC for fee, have ${ethers.formatUnits(balance, 6)} USDC`);
+        throw new Error(`Insufficient USDC balance. Need ${ethers.formatUnits(feeAmount, 6)} USDC for flash loan fee, but have ${ethers.formatUnits(balance, 6)} USDC`);
+      }
+      console.log(`[STEP 1] SUFFICIENT BALANCE: Proceeding with flash loan`);
+      
       const strategies = await this.getStrategies();
       const strategy = strategies.find(s => s.id === strategyId);
       if (!strategy) {
         throw new Error(`Strategy ${strategyId} not found`);
       }
+      
+      console.log(`[STEP 2] Selected Strategy: ${strategy.name}`);
+      console.log(`[STEP 2] Protocol: ${strategy.protocol}`);
+      console.log(`[STEP 2] Token In: ${strategy.tokenIn}`);
+      console.log(`[STEP 2] Token Out: ${strategy.tokenOut}`);
+      console.log(`[STEP 2] Risk Level: ${strategy.riskLevel}`);
+      console.log(`[STEP 2] Estimated Profit: ${strategy.estimatedProfit}%`);
+      
       if (amount < strategy.minAmount || amount > strategy.maxAmount) {
         throw new Error(`Amount must be between ${ethers.formatUnits(strategy.minAmount, 6)} and ${ethers.formatUnits(strategy.maxAmount, 6)} USDC`);
       }
+      
+      console.log(`[STEP 3] Amount validation passed: ${ethers.formatUnits(amount, 6)} USDC is within range`);
+      
       // Prepare instruction data based on protocol
       let instructionData1 = '0x';
       let instructionData2 = '0x';
+      
+      console.log(`[STEP 4] Preparing instructions for protocol: ${strategy.protocol}`);
+      
       if (strategy.protocol === 'orca') {
+        console.log(`[STEP 4] Building Orca instructions...`);
         // Use real Orca instruction builder with Phantom wallet
         const orcaInstructions = await this.prepareOrcaInstructions(amount, slippageTolerance, solanaProvider);
         instructionData1 = orcaInstructions.instructionData1;
         instructionData2 = orcaInstructions.instructionData2;
+        console.log(`[STEP 4] Orca instruction data 1 length: ${instructionData1.length} bytes`);
+        console.log(`[STEP 4] Orca instruction data 2 length: ${instructionData2.length} bytes`);
       } else if (strategy.protocol === 'raydium') {
+        console.log(`[STEP 4] Building Raydium instructions...`);
         const { instructionData1: i1, instructionData2: i2 } = await this.prepareRaydiumInstructions(amount, slippageTolerance);
         instructionData1 = i1;
         instructionData2 = i2;
+        console.log(`[STEP 4] Raydium instruction data 1 length: ${instructionData1.length} bytes`);
+        console.log(`[STEP 4] Raydium instruction data 2 length: ${instructionData2.length} bytes`);
       } else if (strategy.protocol === 'jupiter') {
+        console.log(`[STEP 4] Building Jupiter instructions...`);
         const { instructionData1: i1, instructionData2: i2 } = await this.prepareJupiterInstructions(amount, slippageTolerance);
         instructionData1 = i1;
         instructionData2 = i2;
+        console.log(`[STEP 4] Jupiter instruction data 1 length: ${instructionData1.length} bytes`);
+        console.log(`[STEP 4] Jupiter instruction data 2 length: ${instructionData2.length} bytes`);
       } else {
         throw new Error(`Unsupported protocol: ${strategy.protocol}`);
       }
+      
+      console.log(`[STEP 5] Executing flash loan contract call...`);
+      console.log(`[STEP 5] Flash Loan Contract Address: ${await this.flashLoanContract.getAddress()}`);
+      console.log(`[STEP 5] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
+      console.log(`[STEP 5] Gas Limit: 5000000`);
+      
       // Execute flash loan
       const tx = await this.flashLoanContract.flashLoanSimple(
         strategy.tokenIn,
@@ -140,17 +194,36 @@ export class FlashLoanService {
           gasLimit: 5000000,
         }
       );
+      
+      console.log(`[STEP 5] Transaction sent! Hash: ${tx.hash}`);
+      console.log(`[STEP 5] Waiting for transaction confirmation...`);
+      
       const receipt = await tx.wait();
+      console.log(`[STEP 5] Transaction confirmed! Block: ${receipt.blockNumber}`);
+      console.log(`[STEP 5] Gas used: ${receipt.gasUsed.toString()}`);
+      console.log(`[STEP 5] Effective gas price: ${ethers.formatUnits(receipt.gasPrice || 0, 'gwei')} gwei`);
+      
+      console.log(`[STEP 6] Retrieving flash loan results...`);
       const lastLoan = await this.flashLoanContract.lastLoan();
       const lastLoanFee = await this.flashLoanContract.lastLoanFee();
+      
+      console.log(`[STEP 6] Last loan amount: ${ethers.formatUnits(lastLoan, 6)} USDC`);
+      console.log(`[STEP 6] Last loan fee: ${ethers.formatUnits(lastLoanFee, 6)} USDC`);
+      
+      const profit = lastLoan - amount - lastLoanFee;
+      console.log(`[STEP 6] Calculated profit: ${ethers.formatUnits(profit, 6)} USDC`);
+      
+      console.log('=== FLASH LOAN EXECUTION COMPLETE ===');
+      
       return {
         success: true,
         transactionHash: receipt.hash,
-        profit: lastLoan - amount - lastLoanFee,
+        profit: profit,
         fee: lastLoanFee,
       };
     } catch (error) {
-      console.error('Flash loan execution failed:', error);
+      console.error('=== FLASH LOAN EXECUTION FAILED ===');
+      console.error('Error details:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -264,6 +337,17 @@ export class FlashLoanService {
    * Check if user has sufficient balance for flash loan fee
    */
   async checkBalance(userAddress: string): Promise<bigint> {
-    return await this.usdcContract.balanceOf(userAddress);
+    console.log(`[BALANCE CHECK] Checking USDC balance for address: ${userAddress}`);
+    console.log(`[BALANCE CHECK] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
+    
+    try {
+      const balance = await this.usdcContract.balanceOf(userAddress);
+      console.log(`[BALANCE CHECK] Raw balance result: ${balance.toString()}`);
+      console.log(`[BALANCE CHECK] Formatted balance: ${ethers.formatUnits(balance, 6)} USDC`);
+      return balance;
+    } catch (error) {
+      console.error(`[BALANCE CHECK] Error checking balance for ${userAddress}:`, error);
+      throw error;
+    }
   }
 } 

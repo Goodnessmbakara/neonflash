@@ -4,11 +4,16 @@ import { deriveAddress } from '@solana/web3.js';
 
 export interface WalletState {
   isConnected: boolean;
-  walletType: 'metamask' | 'phantom' | null;
+  walletType: 'metamask' | 'phantom' | 'dual' | null;
   ethereumAddress: string | null;
   solanaAddress: string | null;
   ethereumProvider: any | null;
   solanaProvider: any | null;
+  // New fields for dual wallet support
+  metamaskConnected: boolean;
+  phantomConnected: boolean;
+  metamaskAddress: string | null;
+  phantomAddress: string | null;
 }
 
 export interface WalletConnection {
@@ -25,6 +30,10 @@ class WalletManager {
     solanaAddress: null,
     ethereumProvider: null,
     solanaProvider: null,
+    metamaskConnected: false,
+    phantomConnected: false,
+    metamaskAddress: null,
+    phantomAddress: null,
   };
 
   private listeners: ((state: WalletState) => void)[] = [];
@@ -65,7 +74,100 @@ class WalletManager {
     return typeof window.solana !== 'undefined' && window.solana.isPhantom;
   }
 
-  // Connect MetaMask
+  // Connect only Phantom (original method)
+  async connectPhantom(): Promise<WalletConnection> {
+    try {
+      if (!window.solana || !window.solana.isPhantom) {
+        throw new Error('Phantom is not installed');
+      }
+      // Enforce Solana Devnet
+      const SOLANA_DEVNET_CHAIN = "devnet";
+      if (window.solana.network !== SOLANA_DEVNET_CHAIN) {
+        // Phantom does not support programmatic network switching, so prompt user
+        alert('Please switch Phantom to Solana Devnet before connecting.');
+        throw new Error('Phantom must be on Solana Devnet to connect.');
+      }
+      // Connect to Phantom
+      const response = await window.solana.connect();
+      const solanaAddress = response.publicKey.toString();
+
+      // Derive Ethereum address from Solana address
+      const ethereumAddress = await this.deriveEthereumAddressFromSolana(solanaAddress);
+
+      this.updateState({
+        isConnected: true,
+        walletType: 'phantom',
+        ethereumAddress,
+        solanaAddress,
+        ethereumProvider: null,
+        solanaProvider: window.solana,
+        metamaskConnected: false,
+        phantomConnected: true,
+        metamaskAddress: null,
+        phantomAddress: solanaAddress,
+      });
+
+      // Listen for account changes
+      window.solana.on('accountChanged', this.handleAccountChange.bind(this));
+      window.solana.on('disconnect', this.handleDisconnect.bind(this));
+
+      return {
+        ethereumAddress,
+        solanaAddress,
+        walletType: 'phantom',
+      };
+    } catch (error) {
+      console.error('Phantom connection error:', error);
+      throw error;
+    }
+  }
+
+  // Connect both MetaMask and Phantom for cross-chain operations
+  async connectDualWallets(): Promise<WalletConnection> {
+    try {
+      console.log('Connecting dual wallets for cross-chain operations...');
+      
+      // Try to use Phantom with EVM support first
+      if (window.solana && window.solana.isPhantom && window.solana.ethereum) {
+        console.log('Using Phantom with EVM support for dual operations');
+        return await this.connectPhantomWithEVM();
+      }
+      
+      // Fallback to separate MetaMask and Phantom connections
+      console.log('Using separate MetaMask and Phantom connections');
+      
+      // Connect MetaMask first
+      const metamaskConnection = await this.connectMetaMask();
+      
+      // Connect Phantom second
+      const phantomConnection = await this.connectPhantom();
+      
+      // Update state to reflect dual connection
+      this.updateState({
+        isConnected: true,
+        walletType: 'dual',
+        ethereumAddress: metamaskConnection.ethereumAddress,
+        solanaAddress: phantomConnection.solanaAddress,
+        ethereumProvider: this.state.ethereumProvider,
+        solanaProvider: this.state.solanaProvider,
+        metamaskConnected: true,
+        phantomConnected: true,
+        metamaskAddress: metamaskConnection.ethereumAddress,
+        phantomAddress: phantomConnection.solanaAddress,
+      });
+
+      return {
+        ethereumAddress: metamaskConnection.ethereumAddress,
+        solanaAddress: phantomConnection.solanaAddress,
+        walletType: 'dual',
+      };
+    } catch (error) {
+      console.error('Dual wallet connection error:', error);
+      throw error;
+    }
+  }
+
+  // Connect only MetaMask (existing method, updated)
   async connectMetaMask(): Promise<WalletConnection> {
     try {
       if (!window.ethereum || !window.ethereum.isMetaMask) {
@@ -126,6 +228,10 @@ class WalletManager {
         solanaAddress,
         ethereumProvider: provider,
         solanaProvider: null,
+        metamaskConnected: true,
+        phantomConnected: false,
+        metamaskAddress: ethereumAddress,
+        phantomAddress: null,
       });
 
       // Listen for account changes
@@ -143,46 +249,112 @@ class WalletManager {
     }
   }
 
-  // Connect Phantom
-  async connectPhantom(): Promise<WalletConnection> {
+  // Connect Phantom with EVM support for cross-chain operations
+  async connectPhantomWithEVM(): Promise<WalletConnection> {
     try {
+      console.log('Connecting Phantom with EVM support...');
+      
       if (!window.solana || !window.solana.isPhantom) {
         throw new Error('Phantom is not installed');
       }
-      // Enforce Solana Devnet
-      const SOLANA_DEVNET_CHAIN = "devnet";
-      if (window.solana.network !== SOLANA_DEVNET_CHAIN) {
-        // Phantom does not support programmatic network switching, so prompt user
-        alert('Please switch Phantom to Solana Devnet before connecting.');
-        throw new Error('Phantom must be on Solana Devnet to connect.');
-      }
-      // Connect to Phantom
+
+      // Connect to Phantom Solana
       const response = await window.solana.connect();
       const solanaAddress = response.publicKey.toString();
 
-      // Derive Ethereum address from Solana address
-      const ethereumAddress = await this.deriveEthereumAddressFromSolana(solanaAddress);
+      // Check if Phantom supports EVM
+      if (window.solana.ethereum) {
+        console.log('Phantom EVM support detected');
+        
+        // Connect to Phantom's EVM provider
+        const evmProvider = window.solana.ethereum;
+        
+        // Switch to Neon Devnet on Phantom's EVM
+        const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e";
+        try {
+          await evmProvider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: NEON_DEVNET_CHAIN_ID }],
+          });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            // Add Neon Devnet if not present
+            await evmProvider.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: NEON_DEVNET_CHAIN_ID,
+                chainName: 'Neon Devnet',
+                rpcUrls: ['https://devnet.neonevm.org'],
+                nativeCurrency: { name: 'Neon', symbol: 'NEON', decimals: 18 },
+                blockExplorerUrls: ['https://neon-devnet.blockscout.com'],
+              }],
+            });
+          }
+        }
 
-      this.updateState({
-        isConnected: true,
-        walletType: 'phantom',
-        ethereumAddress,
-        solanaAddress,
-        ethereumProvider: null,
-        solanaProvider: window.solana,
-      });
+        // Get EVM accounts
+        const accounts = await evmProvider.request({
+          method: 'eth_requestAccounts',
+        });
 
-      // Listen for account changes
-      window.solana.on('accountChanged', this.handleAccountChange.bind(this));
-      window.solana.on('disconnect', this.handleDisconnect.bind(this));
+        if (!accounts || accounts.length === 0) {
+          throw new Error('No EVM accounts found in Phantom');
+        }
 
-      return {
-        ethereumAddress,
-        solanaAddress,
-        walletType: 'phantom',
-      };
+        const ethereumAddress = accounts[0];
+        console.log('Phantom EVM address:', ethereumAddress);
+
+        // Create ethers provider for Phantom's EVM
+        const provider = new ethers.BrowserProvider(evmProvider);
+
+        this.updateState({
+          isConnected: true,
+          walletType: 'phantom',
+          ethereumAddress,
+          solanaAddress,
+          ethereumProvider: provider,
+          solanaProvider: window.solana,
+          metamaskConnected: false,
+          phantomConnected: true,
+          metamaskAddress: null,
+          phantomAddress: solanaAddress,
+        });
+
+        // Listen for account changes
+        window.solana.on('accountChanged', this.handleAccountChange.bind(this));
+        window.solana.on('disconnect', this.handleDisconnect.bind(this));
+
+        return {
+          ethereumAddress,
+          solanaAddress,
+          walletType: 'phantom',
+        };
+      } else {
+        // Fallback to address derivation if EVM not supported
+        console.log('Phantom EVM not supported, using address derivation');
+        const ethereumAddress = await this.deriveEthereumAddressFromSolana(solanaAddress);
+
+        this.updateState({
+          isConnected: true,
+          walletType: 'phantom',
+          ethereumAddress,
+          solanaAddress,
+          ethereumProvider: null,
+          solanaProvider: window.solana,
+          metamaskConnected: false,
+          phantomConnected: true,
+          metamaskAddress: null,
+          phantomAddress: solanaAddress,
+        });
+
+        return {
+          ethereumAddress,
+          solanaAddress,
+          walletType: 'phantom',
+        };
+      }
     } catch (error) {
-      console.error('Phantom connection error:', error);
+      console.error('Phantom with EVM connection error:', error);
       throw error;
     }
   }
@@ -264,6 +436,14 @@ class WalletManager {
 
   // Disconnect wallet
   disconnect() {
+    // Remove event listeners
+    if (window.ethereum) {
+      window.ethereum.removeAllListeners();
+    }
+    if (window.solana) {
+      window.solana.removeAllListeners();
+    }
+
     this.updateState({
       isConnected: false,
       walletType: null,
@@ -271,7 +451,36 @@ class WalletManager {
       solanaAddress: null,
       ethereumProvider: null,
       solanaProvider: null,
+      metamaskConnected: false,
+      phantomConnected: false,
+      metamaskAddress: null,
+      phantomAddress: null,
     });
+  }
+
+  // Check if both wallets are connected for cross-chain operations
+  isDualConnected(): boolean {
+    return this.state.metamaskConnected && this.state.phantomConnected;
+  }
+
+  // Get the appropriate provider for a given chain
+  getProviderForChain(chain: 'neon' | 'solana'): any {
+    if (chain === 'neon') {
+      return this.state.ethereumProvider;
+    } else if (chain === 'solana') {
+      return this.state.solanaProvider;
+    }
+    return null;
+  }
+
+  // Get the appropriate address for a given chain
+  getAddressForChain(chain: 'neon' | 'solana'): string | null {
+    if (chain === 'neon') {
+      return this.state.metamaskAddress || this.state.ethereumAddress;
+    } else if (chain === 'solana') {
+      return this.state.phantomAddress || this.state.solanaAddress;
+    }
+    return null;
   }
 
   // Get available wallets

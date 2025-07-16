@@ -36,8 +36,18 @@ export default function FlashLoan() {
   const [strategies, setStrategies] = useState<FlashLoanStrategy[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<string>("");
   const { toast } = useToast();
-  const { isConnected, walletType, ethereumAddress, solanaAddress } =
-    useWallet();
+  const {
+    isConnected,
+    walletType,
+    ethereumAddress,
+    solanaAddress,
+    metamaskConnected,
+    phantomConnected,
+    isDualConnected,
+    connectDualWallets,
+    metamaskAddress,
+    phantomAddress,
+  } = useWallet();
   const flashLoanServiceRef = React.useRef<FlashLoanService | null>(null);
 
   const [arbitrageOpportunities, setArbitrageOpportunities] = useState<
@@ -175,15 +185,26 @@ export default function FlashLoan() {
 
     // Enforce correct wallet and network for source chain
     if (sourceChain === "neon") {
-      // Must use MetaMask and be on Neon Devnet
-      if (walletType !== "metamask") {
+      // For cross-chain operations, we need both wallets or just MetaMask, or Phantom with EVM support
+      if (walletType !== "metamask" && walletType !== "dual" && walletType !== "phantom") {
         toast({
-          title: "Wrong Wallet",
-          description: "Please connect MetaMask for Neon EVM operations.",
+          title: "Wallet Required",
+          description: "Please connect MetaMask for Neon EVM operations, or use 'Connect Both Wallets' for cross-chain operations.",
           variant: "destructive",
         });
         return;
       }
+      
+      // If using Phantom, check if it has EVM support
+      if (walletType === "phantom" && !ethereumAddress) {
+        toast({
+          title: "Phantom EVM Support Required",
+          description: "Your Phantom wallet needs EVM support for Neon operations. Try connecting both wallets or use MetaMask.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (typeof window !== "undefined" && window.ethereum) {
         const chainId = await window.ethereum.request({
           method: "eth_chainId",
@@ -192,7 +213,7 @@ export default function FlashLoan() {
           toast({
             title: "Wrong Network",
             description:
-              "Please switch MetaMask to Neon Devnet before executing.",
+              "Please switch to Neon Devnet before executing.",
             variant: "destructive",
           });
           return;
@@ -200,10 +221,22 @@ export default function FlashLoan() {
       }
     } else if (sourceChain === "solana") {
       // Must use Phantom for Solana
-      if (walletType !== "phantom") {
+      if (walletType !== "phantom" && walletType !== "dual") {
         toast({
           title: "Wrong Wallet",
-          description: "Please connect Phantom for Solana operations.",
+          description: "Please connect Phantom for Solana operations, or use 'Connect Both Wallets' for cross-chain operations.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // For cross-chain operations, ensure we have both wallets if needed
+    if (sourceChain === "neon" && targetChain === "solana") {
+      if (!isDualConnected && walletType !== "metamask" && walletType !== "phantom") {
+        toast({
+          title: "Wallet Required",
+          description: "Cross-chain operations require either MetaMask, Phantom with EVM support, or both wallets connected.",
           variant: "destructive",
         });
         return;
@@ -223,6 +256,16 @@ export default function FlashLoan() {
     setFlashLoanResult(null);
 
     try {
+      console.log("=== FLASH LOAN PAGE EXECUTION START ===");
+      console.log(`[PAGE] Selected Strategy: ${selectedStrategy}`);
+      console.log(`[PAGE] Amount: ${amount} USDC`);
+      console.log(`[PAGE] Source Chain: ${sourceChain}`);
+      console.log(`[PAGE] Target Chain: ${targetChain}`);
+      console.log(`[PAGE] Wallet Type: ${walletType}`);
+      console.log(`[PAGE] Is Connected: ${isConnected}`);
+      console.log(`[PAGE] Ethereum Address: ${ethereumAddress}`);
+      console.log(`[PAGE] Solana Address: ${solanaAddress}`);
+
       // Find the selected strategy object
       const strategy = strategies.find((s) => s.id === selectedStrategy);
       if (!strategy) {
@@ -238,6 +281,10 @@ export default function FlashLoan() {
       const min = Number(ethers.formatUnits(strategy.minAmount, 6));
       const max = Number(ethers.formatUnits(strategy.maxAmount, 6));
 
+      console.log(`[PAGE] Amount in Wei: ${amountInWei.toString()}`);
+      console.log(`[PAGE] Strategy Min Amount: ${min} USDC`);
+      console.log(`[PAGE] Strategy Max Amount: ${max} USDC`);
+
       if (parseFloat(amount) < min || parseFloat(amount) > max) {
         toast({
           title: "Invalid Amount",
@@ -249,31 +296,46 @@ export default function FlashLoan() {
 
       // Setup contract and ensure sufficient balance
       if (typeof window !== "undefined" && window.ethereum) {
+        console.log(`[PAGE] Setting up contract with Ethereum provider...`);
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const contractSetup = new ContractSetupService(provider, signer);
 
         // Get and log the EVM address being used
         const userEvmAddress = await signer.getAddress();
-        console.log('[DEBUG] Using EVM address for flash loan:', userEvmAddress);
-        console.log('[DEBUG] User Solana address (if connected):', solanaAddress);
+        console.log(`[PAGE] User EVM Address: ${userEvmAddress}`);
+        console.log(`[PAGE] User Solana Address: ${solanaAddress}`);
+        console.log(
+          `[PAGE] Network Chain ID: ${await provider
+            .getNetwork()
+            .then((n) => n.chainId)}`
+        );
 
         // Verify USDC contract is accessible
-        const isUSDCContractAccessible = await contractSetup.verifyUSDCContract();
+        console.log(`[PAGE] Verifying USDC contract accessibility...`);
+        const isUSDCContractAccessible =
+          await contractSetup.verifyUSDCContract();
+        console.log(
+          `[PAGE] USDC Contract Accessible: ${isUSDCContractAccessible}`
+        );
+
         if (!isUSDCContractAccessible) {
           toast({
             title: "USDC Contract Not Accessible",
-            description: "Unable to access USDC contract on Neon EVM. Please check your network connection.",
+            description:
+              "Unable to access USDC contract on Neon EVM. Please check your network connection.",
             variant: "destructive",
           });
           return;
         }
 
         // Check if user has sufficient balance for flash loan fee
+        console.log(`[PAGE] Checking user balance for flash loan fee...`);
         const hasBalance = await contractSetup.checkUserBalanceForFee(
           userEvmAddress,
           amountInWei
         );
+        console.log(`[PAGE] User has sufficient balance: ${hasBalance}`);
 
         if (!hasBalance) {
           toast({
@@ -286,15 +348,20 @@ export default function FlashLoan() {
         }
 
         // Ensure contract has sufficient USDC for fees
+        console.log(`[PAGE] Ensuring contract has sufficient USDC balance...`);
         toast({
           title: "Setting up contract...",
           description: "Ensuring contract has sufficient USDC balance for fees",
         });
 
         await contractSetup.ensureContractBalance();
+        console.log(`[PAGE] Contract balance setup complete`);
       }
 
       // Execute flash loan
+      console.log(
+        `[PAGE] Executing flash loan with strategy: ${strategy.name}`
+      );
       toast({
         title: "Executing flash loan...",
         description: `Executing ${strategy.name} with ${amount} USDC`,
@@ -307,6 +374,8 @@ export default function FlashLoan() {
         typeof window !== "undefined" &&
         window.solana
       ) {
+        console.log(`[PAGE] Using Orca strategy with Phantom wallet provider`);
+        console.log(`[PAGE] Phantom wallet available: ${!!window.solana}`);
         result = await flashLoanServiceRef.current.executeFlashLoan(
           selectedStrategy,
           amountInWei,
@@ -314,12 +383,28 @@ export default function FlashLoan() {
           window.solana // Pass Phantom wallet provider
         );
       } else {
+        console.log(`[PAGE] Using non-Orca strategy or no Phantom wallet`);
         result = await flashLoanServiceRef.current.executeFlashLoan(
           selectedStrategy,
           amountInWei,
           0.5
         );
       }
+
+      console.log(`[PAGE] Flash loan execution result:`, result);
+      console.log(`[PAGE] Success: ${result.success}`);
+      console.log(`[PAGE] Transaction Hash: ${result.transactionHash}`);
+      console.log(
+        `[PAGE] Profit: ${
+          result.profit ? ethers.formatUnits(result.profit, 6) : "N/A"
+        } USDC`
+      );
+      console.log(
+        `[PAGE] Fee: ${
+          result.fee ? ethers.formatUnits(result.fee, 6) : "N/A"
+        } USDC`
+      );
+      console.log(`[PAGE] Error: ${result.error || "None"}`);
 
       setFlashLoanResult({
         ...result,
@@ -347,6 +432,9 @@ export default function FlashLoan() {
           result.profit || BigInt(0),
           6
         );
+        console.log(
+          `[PAGE] Flash loan successful! Profit: ${profitFormatted} USDC`
+        );
         toast({
           title: "Flash Loan Executed Successfully! 🎉",
           description: `Generated ${profitFormatted} USDC profit. Transaction: ${result.transactionHash?.substring(
@@ -355,17 +443,21 @@ export default function FlashLoan() {
           )}...`,
         });
       } else {
+        console.log(`[PAGE] Flash loan failed: ${result.error}`);
         toast({
           title: "Flash Loan Failed",
           description: result.error || "Failed to execute flash loan",
           variant: "destructive",
         });
       }
+
+      console.log("=== FLASH LOAN PAGE EXECUTION COMPLETE ===");
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      console.error("Flash loan execution error:", error);
+      console.error("=== FLASH LOAN PAGE EXECUTION FAILED ===");
+      console.error("Error details:", error);
 
       toast({
         title: "Execution Failed",
@@ -412,6 +504,87 @@ export default function FlashLoan() {
       <div className="flex justify-end mb-2">
         <AirdropButton />
       </div>
+
+      {/* Wallet Connection Status */}
+      {!isConnected && (
+        <Card className="mb-4">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">
+                  Connect Your Wallets
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  For cross-chain flash loans, you need both MetaMask (Neon EVM)
+                  and Phantom (Solana)
+                </p>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={connectDualWallets} variant="default">
+                  Connect Both Wallets
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Wallet Status Display */}
+      {isConnected && (
+        <Card className="mb-4">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-medium mb-2">MetaMask (Neon EVM)</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Status:</span>
+                    <Badge
+                      variant={metamaskConnected ? "default" : "secondary"}
+                    >
+                      {metamaskConnected ? "Connected" : "Disconnected"}
+                    </Badge>
+                  </div>
+                  {metamaskAddress && (
+                    <div className="flex justify-between">
+                      <span>Address:</span>
+                      <span className="font-mono text-xs">{metamaskAddress.slice(0, 6)}...{metamaskAddress.slice(-4)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Phantom (Solana)</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Status:</span>
+                    <Badge variant={phantomConnected ? "default" : "secondary"}>
+                      {phantomConnected ? "Connected" : "Disconnected"}
+                    </Badge>
+                  </div>
+                  {phantomAddress && (
+                    <div className="flex justify-between">
+                      <span>Address:</span>
+                      <span className="font-mono text-xs">{phantomAddress.slice(0, 6)}...{phantomAddress.slice(-4)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {isDualConnected && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-green-800">
+                    Ready for Cross-Chain Operations
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -602,25 +775,33 @@ export default function FlashLoan() {
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Wallet Type:</span>
+                  <span>Connection Type:</span>
                   <Badge variant="outline">
-                    {walletType
-                      ? walletType.charAt(0).toUpperCase() + walletType.slice(1)
-                      : "None"}
+                    {walletType === 'dual' ? 'Dual Wallet' : 
+                     walletType === 'metamask' ? 'MetaMask Only' :
+                     walletType === 'phantom' ? (ethereumAddress ? 'Phantom (EVM + Solana)' : 'Phantom (Solana Only)') : 'None'}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Neon EVM:</span>
-                  <Badge variant={ethereumAddress ? "default" : "secondary"}>
-                    {ethereumAddress ? "Available" : "Unavailable"}
+                  <span>MetaMask:</span>
+                  <Badge variant={metamaskConnected ? "default" : "secondary"}>
+                    {metamaskConnected ? "Connected" : "Disconnected"}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Solana:</span>
-                  <Badge variant={solanaAddress ? "default" : "secondary"}>
-                    {solanaAddress ? "Available" : "Unavailable"}
+                  <span>Phantom:</span>
+                  <Badge variant={phantomConnected ? "default" : "secondary"}>
+                    {phantomConnected ? "Connected" : "Disconnected"}
                   </Badge>
                 </div>
+                {(isDualConnected || (walletType === 'phantom' && ethereumAddress)) && (
+                  <div className="flex justify-between">
+                    <span>Cross-Chain Ready:</span>
+                    <Badge variant="default" className="bg-green-600">
+                      Ready
+                    </Badge>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
