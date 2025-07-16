@@ -239,7 +239,7 @@ export function useWallet(): UseWalletReturn {
     phantomConnected: state.phantomConnected,
     metamaskAddress: state.metamaskAddress,
     phantomAddress: state.phantomAddress,
-    isDualConnected: state.isDualConnected,
+    isDualConnected: walletManager.isDualConnected(),
     
     // Available wallets
     availableWallets,
@@ -247,7 +247,7 @@ export function useWallet(): UseWalletReturn {
     // Actions
     connectMetaMask,
     connectPhantom,
-    connectDualWallets: walletManager.connectDualWallets,
+    connectDualWallets,
     disconnect,
     autoConnect,
     
