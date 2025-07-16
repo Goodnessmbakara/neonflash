@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
       }
       try {
         await retryWithBackoff(async () => {
+          const newLocal = 'https://api.neonfaucet.org/request_neon';
           console.log('Neon faucet request:', {
-            url: 'https://api.neonfaucet.org/request_neon',
+            url: newLocal,
             body: { wallet: address, amount: 100 },
           });
           const faucetRes = await fetch('https://api.neonfaucet.org/request_neon', {

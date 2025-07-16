@@ -93,16 +93,6 @@ export function useWallet(): UseWalletReturn {
       if (!window.solana || !window.solana.isPhantom) {
         throw new Error('Phantom is not installed');
       }
-      // Enforce Solana Devnet
-      if (window.solana.network !== 'devnet') {
-        toast({
-          title: 'Wrong Network',
-          description: 'Please switch Phantom to Solana Devnet before connecting.',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        throw new Error('Phantom must be on Solana Devnet to connect.');
-      }
       const response = await window.solana.connect();
       const solanaAddress = response.publicKey.toString();
       const ethereumAddress = await walletManager.deriveEthereumAddressFromSolana(solanaAddress);
@@ -116,6 +106,26 @@ export function useWallet(): UseWalletReturn {
       });
       window.solana.on('accountChanged', walletManager.handleAccountChange.bind(walletManager));
       window.solana.on('disconnect', walletManager.handleDisconnect.bind(walletManager));
+
+      // After connecting, check if the account exists on Solana Devnet
+      try {
+        const { Connection, PublicKey } = await import('@solana/web3.js');
+        const connection = new Connection('https://api.devnet.solana.com', 'processed');
+        const accountInfo = await connection.getAccountInfo(new PublicKey(solanaAddress));
+        if (!accountInfo) {
+          toast({
+            title: 'Warning: Account not found on Devnet',
+            description: 'Your Phantom wallet is not on Solana Devnet or the account does not exist on Devnet. You may need to airdrop some SOL to this address on Devnet.',
+            variant: 'destructive',
+          });
+        }
+      } catch (devnetCheckError) {
+        toast({
+          title: 'Devnet Check Failed',
+          description: 'Could not verify your account on Solana Devnet. Proceed with caution.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to connect Phantom';
       setError(errorMessage);

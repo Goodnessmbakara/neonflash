@@ -22,6 +22,7 @@ import {
   FlashLoanService,
   FlashLoanStrategy,
 } from "@/lib/services/flash-loan-service";
+import { ContractSetupService } from "@/lib/services/contract-setup";
 import { ethers } from "ethers";
 
 export default function FlashLoan() {
@@ -171,6 +172,7 @@ export default function FlashLoan() {
       });
       return;
     }
+
     // Enforce correct wallet and network for source chain
     if (sourceChain === "neon") {
       // Must use MetaMask and be on Neon Devnet
@@ -206,8 +208,8 @@ export default function FlashLoan() {
         });
         return;
       }
-      // Optionally, check for Solana Devnet connection here
     }
+
     if (!flashLoanServiceRef.current) {
       toast({
         title: "Service Not Ready",
@@ -216,8 +218,10 @@ export default function FlashLoan() {
       });
       return;
     }
+
     setIsExecuting(true);
     setFlashLoanResult(null);
+
     try {
       // Find the selected strategy object
       const strategy = strategies.find((s) => s.id === selectedStrategy);
@@ -229,8 +233,11 @@ export default function FlashLoan() {
         });
         return;
       }
+
+      const amountInWei = ethers.parseUnits(amount, 6); // USDC decimals
       const min = Number(ethers.formatUnits(strategy.minAmount, 6));
       const max = Number(ethers.formatUnits(strategy.maxAmount, 6));
+
       if (parseFloat(amount) < min || parseFloat(amount) > max) {
         toast({
           title: "Invalid Amount",
@@ -239,11 +246,76 @@ export default function FlashLoan() {
         });
         return;
       }
-      const result = await flashLoanServiceRef.current.executeFlashLoan(
-        selectedStrategy,
-        ethers.parseUnits(amount, 6), // USDC decimals
-        strategy.estimatedProfit // Use strategy's slippage/estimation for now
-      );
+
+      // Setup contract and ensure sufficient balance
+      if (typeof window !== "undefined" && window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contractSetup = new ContractSetupService(provider, signer);
+
+        // Get and log the EVM address being used
+        const userEvmAddress = await signer.getAddress();
+        console.log(
+          "[DEBUG] Using EVM address for flash loan:",
+          userEvmAddress
+        );
+        console.log(
+          "[DEBUG] User Solana address (if connected):",
+          solanaAddress
+        );
+
+        // Check if user has sufficient balance for flash loan fee
+        const hasBalance = await contractSetup.checkUserBalanceForFee(
+          userEvmAddress,
+          amountInWei
+        );
+
+        if (!hasBalance) {
+          toast({
+            title: "Insufficient Balance",
+            description:
+              "You need USDC to pay flash loan fees. Get test USDC from the airdrop button.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Ensure contract has sufficient USDC for fees
+        toast({
+          title: "Setting up contract...",
+          description: "Ensuring contract has sufficient USDC balance for fees",
+        });
+
+        await contractSetup.ensureContractBalance();
+      }
+
+      // Execute flash loan
+      toast({
+        title: "Executing flash loan...",
+        description: `Executing ${strategy.name} with ${amount} USDC`,
+      });
+
+      // Pass Phantom wallet provider for Orca strategy
+      let result;
+      if (
+        strategy.protocol === "orca" &&
+        typeof window !== "undefined" &&
+        window.solana
+      ) {
+        result = await flashLoanServiceRef.current.executeFlashLoan(
+          selectedStrategy,
+          amountInWei,
+          0.5, // 0.5% slippage tolerance
+          window.solana // Pass Phantom wallet provider
+        );
+      } else {
+        result = await flashLoanServiceRef.current.executeFlashLoan(
+          selectedStrategy,
+          amountInWei,
+          0.5
+        );
+      }
+
       setFlashLoanResult({
         ...result,
         steps: {
@@ -264,10 +336,18 @@ export default function FlashLoan() {
           },
         },
       });
+
       if (result.success) {
+        const profitFormatted = ethers.formatUnits(
+          result.profit || BigInt(0),
+          6
+        );
         toast({
-          title: "Flash Loan Executed Successfully!",
-          description: `Generated ${result.profit} USDC profit`,
+          title: "Flash Loan Executed Successfully! 🎉",
+          description: `Generated ${profitFormatted} USDC profit. Transaction: ${result.transactionHash?.substring(
+            0,
+            10
+          )}...`,
         });
       } else {
         toast({
@@ -279,11 +359,15 @@ export default function FlashLoan() {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+
+      console.error("Flash loan execution error:", error);
+
       toast({
         title: "Execution Failed",
         description: errorMessage,
         variant: "destructive",
       });
+
       setFlashLoanResult({
         success: false,
         error: errorMessage,

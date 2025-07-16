@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES, NETWORK_CONFIG } from '../contracts/addresses';
 import { CONTRACT_ABIS, FlashLoanParams } from '../contracts/abis';
+import { OrcaInstructionBuilder, OrcaSwapParams } from './orca-instruction-builder';
 
 export interface FlashLoanStrategy {
   id: string;
@@ -93,32 +94,42 @@ export class FlashLoanService {
 
   /**
    * Execute a flash loan with the specified strategy
+   * Accepts solanaProvider for real Solana instruction building (Phantom wallet)
    */
   async executeFlashLoan(
     strategyId: string,
     amount: bigint,
-    slippageTolerance: number = 0.5
+    slippageTolerance: number = 0.5,
+    solanaProvider?: any // Phantom wallet
   ): Promise<FlashLoanResult> {
     try {
       const strategies = await this.getStrategies();
       const strategy = strategies.find(s => s.id === strategyId);
-      
       if (!strategy) {
         throw new Error(`Strategy ${strategyId} not found`);
       }
-
-      // Validate amount
       if (amount < strategy.minAmount || amount > strategy.maxAmount) {
         throw new Error(`Amount must be between ${ethers.formatUnits(strategy.minAmount, 6)} and ${ethers.formatUnits(strategy.maxAmount, 6)} USDC`);
       }
-
       // Prepare instruction data based on protocol
-      const { instructionData1, instructionData2 } = await this.prepareInstructions(
-        strategy,
-        amount,
-        slippageTolerance
-      );
-
+      let instructionData1 = '0x';
+      let instructionData2 = '0x';
+      if (strategy.protocol === 'orca') {
+        // Use real Orca instruction builder with Phantom wallet
+        const orcaInstructions = await this.prepareOrcaInstructions(amount, slippageTolerance, solanaProvider);
+        instructionData1 = orcaInstructions.instructionData1;
+        instructionData2 = orcaInstructions.instructionData2;
+      } else if (strategy.protocol === 'raydium') {
+        const { instructionData1: i1, instructionData2: i2 } = await this.prepareRaydiumInstructions(amount, slippageTolerance);
+        instructionData1 = i1;
+        instructionData2 = i2;
+      } else if (strategy.protocol === 'jupiter') {
+        const { instructionData1: i1, instructionData2: i2 } = await this.prepareJupiterInstructions(amount, slippageTolerance);
+        instructionData1 = i1;
+        instructionData2 = i2;
+      } else {
+        throw new Error(`Unsupported protocol: ${strategy.protocol}`);
+      }
       // Execute flash loan
       const tx = await this.flashLoanContract.flashLoanSimple(
         strategy.tokenIn,
@@ -126,16 +137,12 @@ export class FlashLoanService {
         instructionData1,
         instructionData2,
         {
-          gasLimit: 5000000, // High gas limit for complex operations
+          gasLimit: 5000000,
         }
       );
-
       const receipt = await tx.wait();
-
-      // Get results from contract
       const lastLoan = await this.flashLoanContract.lastLoan();
       const lastLoanFee = await this.flashLoanContract.lastLoanFee();
-
       return {
         success: true,
         transactionHash: receipt.hash,
@@ -177,16 +184,37 @@ export class FlashLoanService {
     }
   }
 
-  private prepareOrcaInstructions(amount: bigint, slippageTolerance: number) {
-    // Simplified Orca Whirlpool instruction preparation
-    // In practice, you'd need to:
-    // 1. Get pool state
-    // 2. Calculate swap amounts
-    // 3. Build proper Solana instructions
-    return {
-      instructionData1: '0x', // Placeholder for actual instruction data
-      instructionData2: '0x', // Placeholder for actual instruction data
-    };
+  /**
+   * Prepare Orca instructions using the corrected implementation
+   */
+  private async prepareOrcaInstructions(amount: bigint, slippageTolerance: number, solanaProvider: any) {
+    try {
+      // Get contract's Neon address
+      const contractNeonAddress = await this.flashLoanContract.getNeonAddress(
+        await this.flashLoanContract.getAddress()
+      );
+      const contractNeonAddressString = ethers.encodeBase58(contractNeonAddress);
+      
+      console.log('[DEBUG] Contract Neon address:', contractNeonAddressString);
+      
+      // Build Orca swap instructions with contract parameters (not user wallet)
+      const orcaParams = {
+        amountIn: amount,
+        contractNeonAddress: contractNeonAddressString,
+        flashLoanContract: this.flashLoanContract,
+        usdcContract: this.usdcContract,
+      };
+      
+      const orcaInstructions = await OrcaInstructionBuilder.buildOrcaSwapInstructions(orcaParams);
+      
+      return {
+        instructionData1: orcaInstructions.instructionData1,
+        instructionData2: orcaInstructions.instructionData2,
+      };
+    } catch (error) {
+      console.error('Error preparing Orca instructions:', error);
+      throw error;
+    }
   }
 
   private prepareRaydiumInstructions(amount: bigint, slippageTolerance: number) {
