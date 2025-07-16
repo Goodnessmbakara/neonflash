@@ -80,12 +80,11 @@ class WalletManager {
       if (!window.solana || !window.solana.isPhantom) {
         throw new Error('Phantom is not installed');
       }
-      // Enforce Solana Devnet
+      // Check Solana Devnet
       const SOLANA_DEVNET_CHAIN = "devnet";
       if (window.solana.network !== SOLANA_DEVNET_CHAIN) {
-        // Phantom does not support programmatic network switching, so prompt user
-        alert('Please switch Phantom to Solana Devnet before connecting.');
-        throw new Error('Phantom must be on Solana Devnet to connect.');
+        // Phantom does not support programmatic network switching
+        throw new Error('Phantom must be on Solana Devnet to connect. Please switch to Solana Devnet in your Phantom wallet settings.');
       }
       // Connect to Phantom
       const response = await window.solana.connect();

@@ -132,6 +132,42 @@ export default function WalletAutoConnect() {
   // Handle dual wallet connection
   const handleDualConnect = async () => {
     try {
+      // Check network status before connecting
+      const networkIssues = [];
+
+      // Check MetaMask network
+      if (window.ethereum && window.ethereum.isMetaMask) {
+        try {
+          const chainId = await window.ethereum.request({
+            method: "eth_chainId",
+          });
+          if (chainId !== "0xeeb2e6e") {
+            // Neon Devnet
+            networkIssues.push("MetaMask must be on Neon Devnet");
+          }
+        } catch (e) {
+          networkIssues.push("MetaMask network check failed");
+        }
+      }
+
+      // Check Phantom network
+      if (window.solana && window.solana.isPhantom) {
+        if (window.solana.network !== "devnet") {
+          networkIssues.push("Phantom must be on Solana Devnet");
+        }
+      }
+
+      if (networkIssues.length > 0) {
+        toast({
+          title: "Network Configuration Required",
+          description:
+            networkIssues.join(". ") +
+            ". Please switch networks in your wallet settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await connectDualWallets();
       setIsDialogOpen(false);
       toast({
