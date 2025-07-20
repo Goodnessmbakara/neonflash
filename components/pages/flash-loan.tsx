@@ -145,12 +145,28 @@ export default function FlashLoan() {
         flashLoanServiceRef.current = null;
         return;
       }
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      flashLoanServiceRef.current = new FlashLoanService(provider, signer);
-      const s = await flashLoanServiceRef.current.getStrategies();
-      setStrategies(s);
-      if (s.length > 0) setSelectedStrategy(s[0].id);
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        // Only request accounts if already connected
+        const accounts = await provider.send("eth_accounts", []);
+        if (!accounts || accounts.length === 0) {
+          setStrategies([]);
+          setSelectedStrategy("");
+          flashLoanServiceRef.current = null;
+          return;
+        }
+        const signer = await provider.getSigner();
+        flashLoanServiceRef.current = new FlashLoanService(provider, signer);
+        const s = await flashLoanServiceRef.current.getStrategies();
+        console.log("Fetched strategies:", s);
+        setStrategies(s);
+        if (s.length > 0) setSelectedStrategy(s[0].id);
+      } catch (err) {
+        console.error("Error setting up flash loan service:", err);
+        setStrategies([]);
+        setSelectedStrategy("");
+        flashLoanServiceRef.current = null;
+      }
     }
     setupServiceAndFetchStrategies();
   }, [isConnected]);
@@ -277,6 +293,15 @@ export default function FlashLoan() {
         return;
       }
 
+      if (strategy.protocol !== "orca") {
+        toast({
+          title: "Strategy Not Supported",
+          description: "This strategy is not yet available. Please select Orca.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const amountInWei = ethers.parseUnits(amount, 6); // USDC decimals
       const min = Number(ethers.formatUnits(strategy.minAmount, 6));
       const max = Number(ethers.formatUnits(strategy.maxAmount, 6));
@@ -376,7 +401,23 @@ export default function FlashLoan() {
       ) {
         console.log(`[PAGE] Using Orca strategy with Phantom wallet provider`);
         console.log(`[PAGE] Phantom wallet available: ${!!window.solana}`);
-        result = await flashLoanServiceRef.current.executeFlashLoan(
+        const flashLoanService = flashLoanServiceRef.current;
+        if (!flashLoanService) {
+          toast({
+            title: "Service Not Ready",
+            description: "Flash loan service is not initialized.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const { instructionData1, instructionData2 } = await flashLoanService.prepareInstructions(
+          strategy,
+          ethers.parseUnits(amount, 6),
+          0.5,
+          window.solana
+        );
+        // Show these in the UI, or use for advanced validation
+        result = await flashLoanService.executeFlashLoan(
           selectedStrategy,
           amountInWei,
           0.5, // 0.5% slippage tolerance
@@ -408,6 +449,8 @@ export default function FlashLoan() {
 
       setFlashLoanResult({
         ...result,
+        profit: result.profit ? result.profit.toString() : undefined,
+        // Remove 'fee' if not in FlashLoanResult type
         steps: {
           borrow: {
             status: result.success ? "success" : "failed",
@@ -665,8 +708,13 @@ export default function FlashLoan() {
                 </SelectTrigger>
                 <SelectContent>
                   {filteredStrategies.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
+                    <SelectItem
+                      key={s.id}
+                      value={s.id}
+                      disabled={s.protocol !== "orca"} // Disable if not Orca
+                    >
                       {s.name}
+                      {s.protocol !== "orca" && " (Coming soon)"}
                     </SelectItem>
                   ))}
                 </SelectContent>
