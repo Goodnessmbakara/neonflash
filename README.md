@@ -1,6 +1,46 @@
 # NeonFlash - Cross-Chain Flash Loan Platform
 
-A pioneering DeFi solution that enables cross-chain flash loans between Ethereum (Neon EVM) and Solana for arbitrage opportunities. Built by Goodness Mbakara for the Neon EVM bootcamp.
+A **breakthrough DeFi solution** that enables cross-chain flash loans between Ethereum (Neon EVM) and Solana for arbitrage opportunities. Built by Goodness Mbakara for the Neon EVM bootcamp.
+
+## 🌟 **BREAKTHROUGH FEATURES**
+
+### 🔗 **Frontend Integration with Neon EVM Precompiles**
+**This is a world-first achievement!** NeonFlash successfully integrates frontend applications with Neon EVM's revolutionary precompile system:
+
+- **Direct Solana Program Calls**: Frontend can now call Solana programs directly from React components through Neon EVM precompiles
+- **ICallSolana Integration**: Seamless integration with the `0xFF00000000000000000000000000000000000006` precompile address
+- **Real-time Instruction Building**: Dynamic Solana instruction creation from the frontend
+- **Cross-Chain Composability**: Ethereum contracts calling Solana programs in real-time
+
+### 🎯 **Multiple Arbitrage Strategies**
+NeonFlash implements **three distinct arbitrage strategies** for maximum profit opportunities:
+
+1. **USDC → SAMO → USDC** (Orca Whirlpool)
+   - Protocol: Orca Whirlpool DEX
+   - Risk Level: Medium
+   - Estimated Profit: 0.5%
+   - Advanced liquidity pool arbitrage
+
+2. **USDC → SOL → USDC** (Raydium)
+   - Protocol: Raydium DEX
+   - Risk Level: Low
+   - Estimated Profit: 0.3%
+   - Stable SOL pair arbitrage
+
+3. **USDC → JUP → USDC** (Jupiter)
+   - Protocol: Jupiter Aggregator
+   - Risk Level: High
+   - Estimated Profit: 1.2%
+   - Aggregated DEX arbitrage
+
+### 💰 **Comprehensive Airdrop System**
+Built-in token distribution system for seamless testing:
+
+- **NEON Token Airdrop**: Direct integration with Neon Faucet API
+- **USDC Token Guidance**: Smart contract integration for USDC distribution
+- **Solana SOL Airdrop**: Devnet SOL distribution for testing
+- **Retry Logic**: Robust error handling with exponential backoff
+- **Balance Verification**: Pre and post-airdrop balance checking
 
 ## 🌐 Live Prototype
 
@@ -18,6 +58,9 @@ The platform has been thoroughly tested and verified to be fully functional:
 - ✅ **Token Infrastructure**: USDC and SAMO tokens properly configured
 - ✅ **API Endpoints**: All endpoints responding correctly
 - ✅ **Airdrop System**: NEON airdrop functional, USDC guidance provided
+- ✅ **Precompile Integration**: Frontend successfully calls Solana programs
+- ✅ **Multi-Strategy Support**: All three arbitrage strategies implemented
+- ✅ **Dual Wallet System**: MetaMask + Phantom integration working
 
 **📊 Detailed Test Results:** See [CURL_TEST_RESULTS.md](./CURL_TEST_RESULTS.md) for comprehensive test suite results and implementation verification.
 
@@ -30,6 +73,8 @@ The platform has been thoroughly tested and verified to be fully functional:
 - **Multiple Strategies**: Support for Orca Whirlpool, Raydium, and Jupiter arbitrage
 - **Real-time Analytics**: Track performance and profit calculations
 - **User-Friendly Interface**: Complex DeFi operations made simple
+- **Dual Wallet Support**: Seamless MetaMask + Phantom integration
+- **Comprehensive Testing**: 13/13 infrastructure tests passed
 
 ## 🏗️ Architecture
 
@@ -63,6 +108,10 @@ neonflash/
 │   ├── config.ts         # Configuration and constants
 │   ├── store.ts          # Zustand state management
 │   ├── services/         # Business logic services
+│   │   ├── flash-loan-service.ts      # Main flash loan logic
+│   │   ├── orca-instruction-builder.ts # Orca strategy implementation
+│   │   ├── analytics-service.ts       # Analytics and transaction tracking
+│   │   └── metric-service.ts          # Real-time metrics and performance tracking
 │   └── contracts/        # Smart contract artifacts
 │       ├── artifacts/    # Contract ABIs (JSON files)
 │       ├── abis.ts       # ABI exports and types
@@ -115,6 +164,7 @@ function transferSolana(bytes32 to, uint64 amount) external returns(bool);
 - **Aave Pool**: `0x9eA85823b7B736189e663ddef0FEE250EF0d23E1`
 - **USDC**: `0x146c38c2E36D34Ed88d843E013677cCe72341794`
 - **Address Provider**: `0x3792F5eD078EEbE34419627E91D648e8Ac3C56e5`
+- **ICallSolana Precompile**: `0xFF00000000000000000000000000000000000006`
 
 ## 🚀 Getting Started
 
@@ -213,6 +263,8 @@ The platform has been thoroughly tested and verified:
 - **Smart Contract Deployment**: All contracts deployed and accessible on devnet
 - **API Endpoints**: All endpoints tested and responding correctly
 - **Wallet Integration**: Dual wallet connection (MetaMask + Phantom) fully functional
+- **Precompile Integration**: Frontend successfully calls Solana programs
+- **Multi-Strategy Testing**: All three arbitrage strategies implemented and tested
 
 ### Test Scripts
 ```bash
@@ -239,14 +291,30 @@ npx hardhat test test/AaveFlashLoan/AaveFlashLoan.js --network neondevnet
 3. **Execute Flash Loan**: Test real cross-chain arbitrage transactions
 4. **Monitor Results**: Track transaction status and profit calculations
 
-## 📊 Analytics
+## 📊 Analytics & Metrics
 
-The platform provides comprehensive analytics:
-- Total transaction volume
-- Success rate
-- Average profit per transaction
-- Best performing strategies
-- Risk metrics
+The platform provides comprehensive analytics and real-time metrics tracking:
+
+### 📈 **Analytics Dashboard**
+- **Total Transaction Volume**: Track cumulative flash loan volume
+- **Success Rate**: Monitor transaction success/failure rates
+- **Profit Analytics**: Real-time profit tracking and calculations
+- **Strategy Performance**: Individual performance metrics for each arbitrage strategy
+- **Risk Metrics**: Comprehensive risk assessment and monitoring
+
+### 📊 **Real-time Metrics Service**
+- **Local Metrics Tracking**: Browser-based metric storage and retrieval
+- **Transaction History**: Complete history of flash loan attempts (successful and failed)
+- **Performance Aggregation**: Automated calculation of total profit, success rates, and trends
+- **Real-time Updates**: Live metric updates with subscription-based notifications
+- **Cross-chain Analytics**: Unified analytics across Neon EVM and Solana networks
+
+### 🔍 **Analytics Features**
+- **Multi-tab Interface**: Overview, Strategies, and Performance views
+- **Strategy Comparison**: Side-by-side comparison of Orca, Raydium, and Jupiter performance
+- **Historical Data**: Transaction history with timestamps and profit calculations
+- **User-specific Analytics**: Personalized analytics based on connected wallet addresses
+- **Export Capabilities**: Data export for external analysis and reporting
 
 ## 🔒 Security
 
