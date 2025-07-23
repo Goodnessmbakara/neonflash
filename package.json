@@ -17,6 +17,8 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@openzeppelin/contracts": "^5.0.1",
+    "@orca-so/common-sdk": "^0.6.0-alpha.3",
+    "@orca-so/whirlpools-sdk": "^0.12.8",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
@@ -44,6 +46,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@solana/spl-token": "^0.4.9",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
@@ -66,6 +69,7 @@
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "^0.4.4",
+    "node-fetch": "^2.7.0",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",
@@ -79,10 +83,7 @@
     "viem": "^2.8.5",
     "wagmi": "^2.6.5",
     "zod": "^3.24.1",
-    "zustand": "^4.5.2",
-    "@orca-so/common-sdk": "^0.6.0-alpha.3",
-    "@orca-so/whirlpools-sdk": "^0.12.8",
-    "@solana/spl-token": "^0.4.9"
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/node": "^22",

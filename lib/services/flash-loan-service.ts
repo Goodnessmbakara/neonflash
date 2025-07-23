@@ -147,44 +147,20 @@ export class FlashLoanService {
       
       console.log(`[STEP 3] Amount validation passed: ${ethers.formatUnits(amount, 6)} USDC is within range`);
       
-      // Prepare instruction data based on protocol
-      let instructionData1 = '0x';
-      let instructionData2 = '0x';
+      // Prepare instruction data using centralized method
+      const { instructionData1, instructionData2 } = await this.prepareInstructions(
+        strategy,
+        amount,
+        slippageTolerance,
+        solanaProvider
+      );
       
-      console.log(`[STEP 4] Preparing instructions for protocol: ${strategy.protocol}`);
-      
-      if (strategy.protocol === 'orca') {
-        console.log(`[STEP 4] Building Orca instructions...`);
-        // Use real Orca instruction builder with Phantom wallet
-        const orcaInstructions = await this.prepareOrcaInstructions(amount, slippageTolerance, solanaProvider);
-        instructionData1 = orcaInstructions.instructionData1;
-        instructionData2 = orcaInstructions.instructionData2;
-        console.log(`[STEP 4] Orca instruction data 1 length: ${instructionData1.length} bytes`);
-        console.log(`[STEP 4] Orca instruction data 2 length: ${instructionData2.length} bytes`);
-      } else if (strategy.protocol === 'raydium') {
-        console.log(`[STEP 4] Building Raydium instructions...`);
-        const { instructionData1: i1, instructionData2: i2 } = await this.prepareRaydiumInstructions(amount, slippageTolerance);
-        instructionData1 = i1;
-        instructionData2 = i2;
-        console.log(`[STEP 4] Raydium instruction data 1 length: ${instructionData1.length} bytes`);
-        console.log(`[STEP 4] Raydium instruction data 2 length: ${instructionData2.length} bytes`);
-      } else if (strategy.protocol === 'jupiter') {
-        console.log(`[STEP 4] Building Jupiter instructions...`);
-        const { instructionData1: i1, instructionData2: i2 } = await this.prepareJupiterInstructions(amount, slippageTolerance);
-        instructionData1 = i1;
-        instructionData2 = i2;
-        console.log(`[STEP 4] Jupiter instruction data 1 length: ${instructionData1.length} bytes`);
-        console.log(`[STEP 4] Jupiter instruction data 2 length: ${instructionData2.length} bytes`);
-      } else {
-        throw new Error(`Unsupported protocol: ${strategy.protocol}`);
-      }
-      
+      // Execute flash loan
       console.log(`[STEP 5] Executing flash loan contract call...`);
       console.log(`[STEP 5] Flash Loan Contract Address: ${await this.flashLoanContract.getAddress()}`);
       console.log(`[STEP 5] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
       console.log(`[STEP 5] Gas Limit: 5000000`);
       
-      // Execute flash loan
       const tx = await this.flashLoanContract.flashLoanSimple(
         strategy.tokenIn,
         amount,
@@ -234,10 +210,11 @@ export class FlashLoanService {
   /**
    * Prepare Solana instructions for the arbitrage strategy
    */
-  private async prepareInstructions(
+  public async prepareInstructions(
     strategy: FlashLoanStrategy,
     amount: bigint,
-    slippageTolerance: number
+    slippageTolerance: number,
+    solanaProvider?: any
   ): Promise<{ instructionData1: string; instructionData2: string }> {
     // This is a simplified version - in practice, you'd need to:
     // 1. Get current prices from DEXs
@@ -247,7 +224,7 @@ export class FlashLoanService {
 
     switch (strategy.protocol) {
       case 'orca':
-        return this.prepareOrcaInstructions(amount, slippageTolerance);
+        return this.prepareOrcaInstructions(amount, slippageTolerance, solanaProvider);
       case 'raydium':
         return this.prepareRaydiumInstructions(amount, slippageTolerance);
       case 'jupiter':
