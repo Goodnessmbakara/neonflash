@@ -68,7 +68,7 @@ export class OrcaInstructionBuilder {
       const TokenA = { mint: new PublicKey(CONTRACT_ADDRESSES.SOLANA_DEVNET.USDC_MINT), decimals: 6 }; // devUSDC
       const TokenB = { mint: new PublicKey(CONTRACT_ADDRESSES.SOLANA_DEVNET.SAMO_MINT), decimals: 9 }; // devSAMO
       const tickSpacing = this.TICK_SPACING;
-      
+
       console.log(`[ORCA] Token A (USDC) Mint: ${TokenA.mint.toString()}`);
       console.log(`[ORCA] Token B (SAMO) Mint: ${TokenB.mint.toString()}`);
       console.log(`[ORCA] Tick Spacing: ${tickSpacing}`);

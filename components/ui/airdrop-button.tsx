@@ -98,18 +98,18 @@ export function AirdropButton({ className = "" }: { className?: string }) {
 
   return (
     <div className="flex gap-2">
-      <Button
-        onClick={handleAirdrop}
-        disabled={loading}
-        variant="outline"
-        className={className}
-        title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
-      >
-        {loading ? (
-          <Loader2 className="animate-spin h-4 w-4 mr-2" />
-        ) : (
-          <Gift className="h-4 w-4 mr-2" />
-        )}
+    <Button
+      onClick={handleAirdrop}
+      disabled={loading}
+      variant="outline"
+      className={className}
+      title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
+    >
+      {loading ? (
+        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+      ) : (
+        <Gift className="h-4 w-4 mr-2" />
+      )}
         Airdrop Gas
       </Button>
       {walletType === "phantom" && (
@@ -126,7 +126,7 @@ export function AirdropButton({ className = "" }: { className?: string }) {
             <Gift className="h-4 w-4 mr-2" />
           )}
           Get USDC
-        </Button>
+    </Button>
       )}
     </div>
   );

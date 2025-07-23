@@ -32,7 +32,7 @@ export default function Header() {
   return (
     <header className="w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sticky top-0 z-40">
       <div className="container flex h-16 items-center justify-between gap-4 mx-auto px-4">
-        {/* Logo */}
+          {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <img
             src="/neonflash-logo.svg"
@@ -47,15 +47,15 @@ export default function Header() {
             <Zap className="w-3 h-3 mr-1" />
             Beta
           </Badge>
-        </Link>
+          </Link>
 
-        {/* Desktop Navigation */}
+          {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-1">
-          {navigation.map((item) => {
+            {navigation.map((item) => {
             const isActive = pathname === item.href;
-            return (
+              return (
               <Button
-                key={item.name}
+                  key={item.name}
                 variant={isActive ? "default" : "ghost"}
                 size="sm"
                 asChild
@@ -66,16 +66,16 @@ export default function Header() {
                 </Link>
               </Button>
             );
-          })}
-        </nav>
+            })}
+          </nav>
 
         {/* Desktop Wallet Connect */}
         <div className="hidden md:flex items-center gap-4">
           <WalletAutoConnect />
-        </div>
+              </div>
 
         {/* Mobile Menu Button */}
-        <Button
+              <Button
           variant="ghost"
           size="sm"
           className="md:hidden"
@@ -86,18 +86,18 @@ export default function Header() {
           ) : (
             <Menu className="h-5 w-5" />
           )}
-        </Button>
-      </div>
+            </Button>
+        </div>
 
       {/* Mobile Menu */}
-      {isMenuOpen && (
+        {isMenuOpen && (
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="container py-4 space-y-2">
-            {navigation.map((item) => {
+              {navigation.map((item) => {
               const isActive = pathname === item.href;
-              return (
+                return (
                 <Button
-                  key={item.name}
+                    key={item.name}
                   variant={isActive ? "default" : "ghost"}
                   className="w-full justify-start"
                   asChild
@@ -108,13 +108,13 @@ export default function Header() {
                   </Link>
                 </Button>
               );
-            })}
+              })}
             <div className="pt-2">
               <WalletAutoConnect />
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        )}
     </header>
   );
 }

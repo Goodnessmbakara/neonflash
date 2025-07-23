@@ -144,12 +144,12 @@ export class ContractSetupService {
       console.log(`[FEE] User EVM Address: ${userAddress}`);
       console.log(`[FEE] Flash Loan Amount: ${ethers.formatUnits(flashLoanAmount, 6)} USDC`);
       
-      const userBalance = await this.getUserBalance(userAddress);
+    const userBalance = await this.getUserBalance(userAddress);
       console.log(`[FEE] User USDC Balance: ${ethers.formatUnits(userBalance, 6)} USDC`);
       
-      const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
-      const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
-      
+    const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
+    const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
+    
       console.log(`[FEE] Flash Loan Fee (0.05%): ${ethers.formatUnits(feeAmount, 6)} USDC`);
       console.log(`[FEE] Required Balance (Fee + 1 USDC buffer): ${ethers.formatUnits(requiredBalance, 6)} USDC`);
       

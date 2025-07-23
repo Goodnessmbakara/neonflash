@@ -112,26 +112,26 @@ export function useWallet(): UseWalletReturn {
         });
       } else {
         console.log('Connecting Phantom (Solana only)...');
-        if (!window.solana || !window.solana.isPhantom) {
-          throw new Error('Phantom is not installed');
-        }
-        const response = await window.solana.connect();
-        const solanaAddress = response.publicKey.toString();
-        const ethereumAddress = await walletManager.deriveEthereumAddressFromSolana(solanaAddress);
-        walletManager.updateState({
-          isConnected: true,
-          walletType: 'phantom',
-          ethereumAddress,
-          solanaAddress,
-          ethereumProvider: null,
-          solanaProvider: window.solana,
+      if (!window.solana || !window.solana.isPhantom) {
+        throw new Error('Phantom is not installed');
+      }
+      const response = await window.solana.connect();
+      const solanaAddress = response.publicKey.toString();
+      const ethereumAddress = await walletManager.deriveEthereumAddressFromSolana(solanaAddress);
+      walletManager.updateState({
+        isConnected: true,
+        walletType: 'phantom',
+        ethereumAddress,
+        solanaAddress,
+        ethereumProvider: null,
+        solanaProvider: window.solana,
           metamaskConnected: false,
           phantomConnected: true,
           metamaskAddress: null,
           phantomAddress: solanaAddress,
-        });
-        window.solana.on('accountChanged', walletManager.handleAccountChange.bind(walletManager));
-        window.solana.on('disconnect', walletManager.handleDisconnect.bind(walletManager));
+      });
+      window.solana.on('accountChanged', walletManager.handleAccountChange.bind(walletManager));
+      window.solana.on('disconnect', walletManager.handleDisconnect.bind(walletManager));
 
         toast({
           title: 'Phantom Connected!',
