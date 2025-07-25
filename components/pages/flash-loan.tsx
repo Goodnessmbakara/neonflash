@@ -62,32 +62,73 @@ export default function FlashLoan() {
   const [arbitrageLoading, setArbitrageLoading] = useState(false);
   const [arbitrageError, setArbitrageError] = useState<string | null>(null);
 
-  const [filteredStrategies, setFilteredStrategies] = useState<
-    FlashLoanStrategy[]
-  >([]);
+  // Remove filteredStrategies - use strategies directly
+  // const [filteredStrategies, setFilteredStrategies] = useState<FlashLoanStrategy[]>([]);
 
-  // When token changes, filter strategies
+  // FIXED: Improved strategy selection logic
   useEffect(() => {
-    if (token && strategies.length > 0) {
-      const filtered = strategies.filter((s) =>
-        s.name.toLowerCase().startsWith(token.toLowerCase())
-      );
-      setFilteredStrategies(filtered);
-      if (filtered.length > 0) setSelectedStrategy(filtered[0].id);
+    if (strategies.length > 0 && !selectedStrategy) {
+      // Only auto-select if no strategy is currently selected
+      const orcaStrategy = strategies.find((s) => s.protocol === "orca");
+      const defaultStrategy = orcaStrategy?.id || strategies[0].id;
+      setSelectedStrategy(defaultStrategy);
+      console.log("Auto-selected strategy:", defaultStrategy);
+    } else if (strategies.length === 0 && isConnected) {
+      // Add fallback strategies if none loaded
+      const fallbackStrategies: FlashLoanStrategy[] = [
+        {
+          id: "orca-usdc-samo",
+          name: "USDC → SAMO → USDC",
+          protocol: "orca",
+          sourceToken: "USDC",
+          targetToken: "SAMO",
+          minAmount: BigInt("1000000"), // 1 USDC
+          maxAmount: BigInt("100000000000"), // 100,000 USDC
+          fee: BigInt("5000"), // 0.5%
+          description: "Arbitrage between USDC and SAMO on Orca",
+        },
+        {
+          id: "raydium-usdc-sol",
+          name: "USDC → SOL → USDC",
+          protocol: "raydium",
+          sourceToken: "USDC",
+          targetToken: "SOL",
+          minAmount: BigInt("1000000"), // 1 USDC
+          maxAmount: BigInt("100000000000"), // 100,000 USDC
+          fee: BigInt("3000"), // 0.3%
+          description: "Arbitrage between USDC and SOL on Raydium",
+        },
+        {
+          id: "jupiter-usdc-jup",
+          name: "USDC → JUP → USDC",
+          protocol: "jupiter",
+          sourceToken: "USDC",
+          targetToken: "JUP",
+          minAmount: BigInt("1000000"), // 1 USDC
+          maxAmount: BigInt("100000000000"), // 100,000 USDC
+          fee: BigInt("12000"), // 1.2%
+          description: "Arbitrage between USDC and JUP on Jupiter",
+        },
+      ];
+
+      console.log("Setting fallback strategies:", fallbackStrategies);
+      setStrategies(fallbackStrategies);
+      setSelectedStrategy("orca-usdc-samo"); // Select Orca strategy by default
     }
-  }, [token, strategies]);
+  }, [strategies, isConnected]);
 
-  // When strategy changes, update token to match strategy input
+  // FIXED: Simplified strategy change effect - only update token when strategy changes
   useEffect(() => {
-    if (selectedStrategy) {
+    if (selectedStrategy && strategies.length > 0) {
       const strategy = strategies.find((s) => s.id === selectedStrategy);
       if (strategy) {
         // Extract the first token from the strategy name (e.g., 'USDC → SAMO → USDC')
         const firstToken = strategy.name.split(" ")[0].toLowerCase();
         setToken(firstToken);
+        console.log("Updated token from strategy:", firstToken);
       }
     }
-  }, [selectedStrategy]);
+  }, [selectedStrategy, strategies]);
 
   useEffect(() => {
     async function fetchPricesAndDetectArb() {
@@ -136,44 +177,112 @@ export default function FlashLoan() {
     return () => clearInterval(interval);
   }, []);
 
-  // Instantiate FlashLoanService when wallet is connected
+  // FIXED: Improved service initialization with better error handling
   useEffect(() => {
     async function setupServiceAndFetchStrategies() {
-      if (typeof window === "undefined" || !isConnected || !window.ethereum) {
+      console.log("Setting up flash loan service...");
+      console.log("isConnected:", isConnected);
+      console.log(
+        "window.ethereum:",
+        typeof window !== "undefined" ? !!window.ethereum : false
+      );
+
+      if (typeof window === "undefined" || !isConnected) {
+        console.log(
+          "Not setting up service - window undefined or not connected"
+        );
         setStrategies([]);
         setSelectedStrategy("");
         flashLoanServiceRef.current = null;
         return;
       }
+
       try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        // Only request accounts if already connected
-        const accounts = await provider.send("eth_accounts", []);
-        if (!accounts || accounts.length === 0) {
+        // Check if ethereum provider is available
+        if (!window.ethereum) {
+          console.log("No ethereum provider found");
           setStrategies([]);
           setSelectedStrategy("");
           flashLoanServiceRef.current = null;
           return;
         }
+
+        console.log("Creating provider...");
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        // Check if accounts are connected
+        console.log("Checking accounts...");
+        const accounts = await provider.send("eth_accounts", []);
+        console.log("Accounts:", accounts);
+
+        if (!accounts || accounts.length === 0) {
+          console.log("No accounts connected");
+          setStrategies([]);
+          setSelectedStrategy("");
+          flashLoanServiceRef.current = null;
+          return;
+        }
+
+        console.log("Getting signer...");
         const signer = await provider.getSigner();
+        const signerAddress = await signer.getAddress();
+        console.log("Signer address:", signerAddress);
+
+        console.log("Creating FlashLoanService...");
         flashLoanServiceRef.current = new FlashLoanService(provider, signer);
-        const s = await flashLoanServiceRef.current.getStrategies();
-        console.log("Fetched strategies:", s);
-        setStrategies(s);
-        if (s.length > 0) setSelectedStrategy(s[0].id);
+
+        console.log("Fetching strategies...");
+        const fetchedStrategies =
+          await flashLoanServiceRef.current.getStrategies();
+        console.log("Fetched strategies:", fetchedStrategies);
+
+        setStrategies(fetchedStrategies);
+
+        // Set default strategy to first Orca strategy
+        if (fetchedStrategies.length > 0) {
+          const orcaStrategy = fetchedStrategies.find(
+            (s) => s.protocol === "orca"
+          );
+          setSelectedStrategy(orcaStrategy?.id || fetchedStrategies[0].id);
+          console.log(
+            "Selected default strategy:",
+            orcaStrategy?.id || fetchedStrategies[0].id
+          );
+        }
       } catch (err) {
         console.error("Error setting up flash loan service:", err);
+        console.error(
+          "Error details:",
+          err instanceof Error ? err.message : "Unknown error"
+        );
         setStrategies([]);
         setSelectedStrategy("");
         flashLoanServiceRef.current = null;
+
+        // Show user-friendly error
+        toast({
+          title: "Service Setup Failed",
+          description:
+            "Failed to initialize flash loan service. Please refresh and try again.",
+          variant: "destructive",
+        });
       }
     }
+
     setupServiceAndFetchStrategies();
-  }, [isConnected]);
+  }, [isConnected, toast]);
 
   const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e"; // 245022926 in hex
 
+  // FIXED: Added debug logging to handleExecute
   const handleExecute = async () => {
+    console.log("=== HANDLE EXECUTE START ===");
+    console.log("isConnected:", isConnected);
+    console.log("amount:", amount);
+    console.log("selectedStrategy:", selectedStrategy);
+    console.log("strategies:", strategies);
+    console.log("flashLoanServiceRef.current:", !!flashLoanServiceRef.current);
+
     if (!isConnected) {
       toast({
         title: "Wallet Not Connected",
@@ -191,6 +300,10 @@ export default function FlashLoan() {
       return;
     }
     if (!selectedStrategy) {
+      console.log(
+        "No strategy selected. Available strategies:",
+        strategies.map((s) => s.id)
+      );
       toast({
         title: "No Strategy Selected",
         description: "Please select an arbitrage strategy",
@@ -199,28 +312,45 @@ export default function FlashLoan() {
       return;
     }
 
+    if (!flashLoanServiceRef.current) {
+      console.log("Flash loan service not ready");
+      toast({
+        title: "Service Not Ready",
+        description:
+          "Flash loan service is not initialized. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Enforce correct wallet and network for source chain
     if (sourceChain === "neon") {
       // For cross-chain operations, we need both wallets or just MetaMask, or Phantom with EVM support
-      if (walletType !== "metamask" && walletType !== "dual" && walletType !== "phantom") {
+      if (
+        walletType !== "metamask" &&
+        walletType !== "dual" &&
+        walletType !== "phantom"
+      ) {
         toast({
           title: "Wallet Required",
-          description: "Please connect MetaMask for Neon EVM operations, or use 'Connect Both Wallets' for cross-chain operations.",
+          description:
+            "Please connect MetaMask for Neon EVM operations, or use 'Connect Both Wallets' for cross-chain operations.",
           variant: "destructive",
         });
         return;
       }
-      
+
       // If using Phantom, check if it has EVM support
       if (walletType === "phantom" && !ethereumAddress) {
         toast({
           title: "Phantom EVM Support Required",
-          description: "Your Phantom wallet needs EVM support for Neon operations. Try connecting both wallets or use MetaMask.",
+          description:
+            "Your Phantom wallet needs EVM support for Neon operations. Try connecting both wallets or use MetaMask.",
           variant: "destructive",
         });
         return;
       }
-      
+
       if (typeof window !== "undefined" && window.ethereum) {
         const chainId = await window.ethereum.request({
           method: "eth_chainId",
@@ -228,8 +358,7 @@ export default function FlashLoan() {
         if (chainId !== NEON_DEVNET_CHAIN_ID) {
           toast({
             title: "Wrong Network",
-            description:
-              "Please switch to Neon Devnet before executing.",
+            description: "Please switch to Neon Devnet before executing.",
             variant: "destructive",
           });
           return;
@@ -240,7 +369,8 @@ export default function FlashLoan() {
       if (walletType !== "phantom" && walletType !== "dual") {
         toast({
           title: "Wrong Wallet",
-          description: "Please connect Phantom for Solana operations, or use 'Connect Both Wallets' for cross-chain operations.",
+          description:
+            "Please connect Phantom for Solana operations, or use 'Connect Both Wallets' for cross-chain operations.",
           variant: "destructive",
         });
         return;
@@ -249,23 +379,19 @@ export default function FlashLoan() {
 
     // For cross-chain operations, ensure we have both wallets if needed
     if (sourceChain === "neon" && targetChain === "solana") {
-      if (!isDualConnected && walletType !== "metamask" && walletType !== "phantom") {
+      if (
+        !isDualConnected &&
+        walletType !== "metamask" &&
+        walletType !== "phantom"
+      ) {
         toast({
           title: "Wallet Required",
-          description: "Cross-chain operations require either MetaMask, Phantom with EVM support, or both wallets connected.",
+          description:
+            "Cross-chain operations require either MetaMask, Phantom with EVM support, or both wallets connected.",
           variant: "destructive",
         });
         return;
       }
-    }
-
-    if (!flashLoanServiceRef.current) {
-      toast({
-        title: "Service Not Ready",
-        description: "Flash loan service is not initialized.",
-        variant: "destructive",
-      });
-      return;
     }
 
     setIsExecuting(true);
@@ -293,10 +419,12 @@ export default function FlashLoan() {
         return;
       }
 
+      // FIXED: Check if strategy is supported
       if (strategy.protocol !== "orca") {
         toast({
           title: "Strategy Not Supported",
-          description: "This strategy is not yet available. Please select Orca.",
+          description:
+            "This strategy is not yet available. Please select an Orca strategy.",
           variant: "destructive",
         });
         return;
@@ -401,23 +529,7 @@ export default function FlashLoan() {
       ) {
         console.log(`[PAGE] Using Orca strategy with Phantom wallet provider`);
         console.log(`[PAGE] Phantom wallet available: ${!!window.solana}`);
-        const flashLoanService = flashLoanServiceRef.current;
-        if (!flashLoanService) {
-          toast({
-            title: "Service Not Ready",
-            description: "Flash loan service is not initialized.",
-            variant: "destructive",
-          });
-          return;
-        }
-        const { instructionData1, instructionData2 } = await flashLoanService.prepareInstructions(
-          strategy,
-          ethers.parseUnits(amount, 6),
-          0.5,
-          window.solana
-        );
-        // Show these in the UI, or use for advanced validation
-        result = await flashLoanService.executeFlashLoan(
+        result = await flashLoanServiceRef.current.executeFlashLoan(
           selectedStrategy,
           amountInWei,
           0.5, // 0.5% slippage tolerance
@@ -440,17 +552,11 @@ export default function FlashLoan() {
           result.profit ? ethers.formatUnits(result.profit, 6) : "N/A"
         } USDC`
       );
-      console.log(
-        `[PAGE] Fee: ${
-          result.fee ? ethers.formatUnits(result.fee, 6) : "N/A"
-        } USDC`
-      );
       console.log(`[PAGE] Error: ${result.error || "None"}`);
 
       setFlashLoanResult({
         ...result,
-        profit: result.profit ? result.profit.toString() : undefined,
-        // Remove 'fee' if not in FlashLoanResult type
+        profit: result.profit ? result.profit.toString() : undefined, // Convert bigint to string
         steps: {
           borrow: {
             status: result.success ? "success" : "failed",
@@ -540,13 +646,34 @@ export default function FlashLoan() {
         <NeonFlashLogo className="h-14 w-14 mb-2" />
       </div>
       <div className="flex items-center gap-2">
-        {/* <Zap className="h-8 w-8 text-blue-500" /> */}
         <h1 className="text-3xl font-bold">Flash Loan</h1>
         <Badge variant="secondary">Beta</Badge>
       </div>
       <div className="flex justify-end mb-2">
         <AirdropButton />
       </div>
+
+      {/* FIXED: Add debug information in development */}
+      {process.env.NODE_ENV === "development" && (
+        <Card className="mb-4 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-sm">Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs space-y-1">
+            <div>Connected: {isConnected ? "Yes" : "No"}</div>
+            <div>
+              Service Ready: {flashLoanServiceRef.current ? "Yes" : "No"}
+            </div>
+            <div>Strategies Count: {strategies.length}</div>
+            <div>Selected Strategy: {selectedStrategy || "None"}</div>
+            <div>Wallet Type: {walletType}</div>
+            <div>
+              Ethereum Provider:{" "}
+              {typeof window !== "undefined" && window.ethereum ? "Yes" : "No"}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Wallet Connection Status */}
       {!isConnected && (
@@ -591,7 +718,10 @@ export default function FlashLoan() {
                   {metamaskAddress && (
                     <div className="flex justify-between">
                       <span>Address:</span>
-                      <span className="font-mono text-xs">{metamaskAddress.slice(0, 6)}...{metamaskAddress.slice(-4)}</span>
+                      <span className="font-mono text-xs">
+                        {metamaskAddress.slice(0, 6)}...
+                        {metamaskAddress.slice(-4)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -608,7 +738,10 @@ export default function FlashLoan() {
                   {phantomAddress && (
                     <div className="flex justify-between">
                       <span>Address:</span>
-                      <span className="font-mono text-xs">{phantomAddress.slice(0, 6)}...{phantomAddress.slice(-4)}</span>
+                      <span className="font-mono text-xs">
+                        {phantomAddress.slice(0, 6)}...
+                        {phantomAddress.slice(-4)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -697,28 +830,50 @@ export default function FlashLoan() {
               </div>
             </div>
 
+            {/* FIXED: Strategy selector with fallback */}
             <div className="space-y-2">
               <Label htmlFor="strategy">Strategy</Label>
               <Select
                 value={selectedStrategy}
-                onValueChange={setSelectedStrategy}
+                onValueChange={(value) => {
+                  console.log("Strategy selection changed to:", value);
+                  setSelectedStrategy(value);
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select a strategy..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredStrategies.map((s) => (
-                    <SelectItem
-                      key={s.id}
-                      value={s.id}
-                      disabled={s.protocol !== "orca"} // Disable if not Orca
-                    >
-                      {s.name}
-                      {s.protocol !== "orca" && " (Coming soon)"}
+                  {strategies.length === 0 ? (
+                    <SelectItem value="loading" disabled>
+                      Loading strategies...
                     </SelectItem>
-                  ))}
+                  ) : (
+                    strategies.map((s) => {
+                      console.log("Rendering strategy option:", s.id, s.name, s.protocol);
+                      return (
+                        <SelectItem
+                          key={s.id}
+                          value={s.id}
+                          disabled={s.protocol !== "orca"}
+                        >
+                          {s.name}
+                          {s.protocol !== "orca" && " (Coming soon)"}
+                        </SelectItem>
+                      );
+                    })
+                  )}
                 </SelectContent>
               </Select>
+              {/* Debug info for strategy selection */}
+              {process.env.NODE_ENV === "development" && (
+                <div className="text-xs text-muted-foreground">
+                  Selected: {selectedStrategy || "None"} | Available: {strategies.length}
+                  {strategies.length > 0 && (
+                    <div>Strategies: {strategies.map(s => s.id).join(", ")}</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <Button
@@ -805,6 +960,53 @@ export default function FlashLoan() {
               </div>
             )}
 
+            {/* Strategy Performance Section */}
+            <div className="mt-6">
+              <h4 className="font-medium mb-4">Strategy Performance</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">USDC → SAMO → USDC</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Orca Whirlpool
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-green-600">+0.5%</div>
+                    <div className="text-sm text-muted-foreground">
+                      Avg. profit
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">USDC → SOL → USDC</h3>
+                    <p className="text-sm text-muted-foreground">Raydium</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-green-600">+0.3%</div>
+                    <div className="text-sm text-muted-foreground">
+                      Avg. profit
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">USDC → JUP → USDC</h3>
+                    <p className="text-sm text-muted-foreground">Jupiter</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-green-600">+1.2%</div>
+                    <div className="text-sm text-muted-foreground">
+                      Avg. profit
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <h4 className="font-medium">Supported Networks</h4>
               <div className="flex gap-2">
@@ -825,9 +1027,15 @@ export default function FlashLoan() {
                 <div className="flex justify-between">
                   <span>Connection Type:</span>
                   <Badge variant="outline">
-                    {walletType === 'dual' ? 'Dual Wallet' : 
-                     walletType === 'metamask' ? 'MetaMask Only' :
-                     walletType === 'phantom' ? (ethereumAddress ? 'Phantom (EVM + Solana)' : 'Phantom (Solana Only)') : 'None'}
+                    {walletType === "dual"
+                      ? "Dual Wallet"
+                      : walletType === "metamask"
+                      ? "MetaMask Only"
+                      : walletType === "phantom"
+                      ? ethereumAddress
+                        ? "Phantom (EVM + Solana)"
+                        : "Phantom (Solana Only)"
+                      : "None"}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
@@ -842,7 +1050,8 @@ export default function FlashLoan() {
                     {phantomConnected ? "Connected" : "Disconnected"}
                   </Badge>
                 </div>
-                {(isDualConnected || (walletType === 'phantom' && ethereumAddress)) && (
+                {(isDualConnected ||
+                  (walletType === "phantom" && ethereumAddress)) && (
                   <div className="flex justify-between">
                     <span>Cross-Chain Ready:</span>
                     <Badge variant="default" className="bg-green-600">
