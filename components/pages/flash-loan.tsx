@@ -74,46 +74,49 @@ export default function FlashLoan() {
       setSelectedStrategy(defaultStrategy);
       console.log("Auto-selected strategy:", defaultStrategy);
     } else if (strategies.length === 0 && isConnected) {
-      // Add fallback strategies if none loaded
+      // Add fallback strategies matching the service interface
       const fallbackStrategies: FlashLoanStrategy[] = [
         {
-          id: "orca-usdc-samo",
+          id: "usdc-samo-usdc",
           name: "USDC → SAMO → USDC",
+          description: "Arbitrage between USDC and SAMO using Orca Whirlpool",
+          tokenIn: "USDC",
+          tokenOut: "SAMO",
           protocol: "orca",
-          sourceToken: "USDC",
-          targetToken: "SAMO",
-          minAmount: BigInt("1000000"), // 1 USDC
-          maxAmount: BigInt("100000000000"), // 100,000 USDC
-          fee: BigInt("5000"), // 0.5%
-          description: "Arbitrage between USDC and SAMO on Orca",
+          riskLevel: "medium",
+          estimatedProfit: 0.5, // 0.5%
+          minAmount: BigInt("100000000"), // 100 USDC (6 decimals)
+          maxAmount: BigInt("10000000000"), // 10,000 USDC
         },
         {
-          id: "raydium-usdc-sol",
+          id: "usdc-sol-usdc",
           name: "USDC → SOL → USDC",
+          description: "Arbitrage between USDC and SOL using Raydium",
+          tokenIn: "USDC",
+          tokenOut: "SOL",
           protocol: "raydium",
-          sourceToken: "USDC",
-          targetToken: "SOL",
-          minAmount: BigInt("1000000"), // 1 USDC
-          maxAmount: BigInt("100000000000"), // 100,000 USDC
-          fee: BigInt("3000"), // 0.3%
-          description: "Arbitrage between USDC and SOL on Raydium",
+          riskLevel: "low",
+          estimatedProfit: 0.3, // 0.3%
+          minAmount: BigInt("100000000"), // 100 USDC
+          maxAmount: BigInt("50000000000"), // 50,000 USDC
         },
         {
-          id: "jupiter-usdc-jup",
+          id: "usdc-jup-usdc",
           name: "USDC → JUP → USDC",
+          description: "Arbitrage between USDC and JUP using Jupiter",
+          tokenIn: "USDC",
+          tokenOut: "JUP",
           protocol: "jupiter",
-          sourceToken: "USDC",
-          targetToken: "JUP",
-          minAmount: BigInt("1000000"), // 1 USDC
-          maxAmount: BigInt("100000000000"), // 100,000 USDC
-          fee: BigInt("12000"), // 1.2%
-          description: "Arbitrage between USDC and JUP on Jupiter",
+          riskLevel: "high",
+          estimatedProfit: 1.2, // 1.2%
+          minAmount: BigInt("100000000"), // 100 USDC
+          maxAmount: BigInt("5000000000"), // 5,000 USDC
         },
       ];
 
       console.log("Setting fallback strategies:", fallbackStrategies);
       setStrategies(fallbackStrategies);
-      setSelectedStrategy("orca-usdc-samo"); // Select Orca strategy by default
+      setSelectedStrategy("usdc-samo-usdc"); // Select Orca strategy by default
     }
   }, [strategies, isConnected]);
 
@@ -177,11 +180,13 @@ export default function FlashLoan() {
     return () => clearInterval(interval);
   }, []);
 
-  // FIXED: Improved service initialization with better error handling
+  // FIXED: Improved service initialization to use fallback strategies everywhere
   useEffect(() => {
     async function setupServiceAndFetchStrategies() {
       console.log("Setting up flash loan service...");
       console.log("isConnected:", isConnected);
+      console.log("walletType:", walletType);
+      console.log("ethereumAddress:", ethereumAddress);
       console.log(
         "window.ethereum:",
         typeof window !== "undefined" ? !!window.ethereum : false
@@ -197,12 +202,99 @@ export default function FlashLoan() {
         return;
       }
 
+      // If using Phantom without EVM support, still set up fallback strategies
+      if (walletType === "phantom" && !ethereumAddress) {
+        console.log("Using Phantom without EVM support - setting up fallback strategies only");
+        const fallbackStrategies: FlashLoanStrategy[] = [
+          {
+            id: "usdc-samo-usdc",
+            name: "USDC → SAMO → USDC",
+            description: "Arbitrage between USDC and SAMO using Orca Whirlpool",
+            tokenIn: "USDC",
+            tokenOut: "SAMO",
+            protocol: "orca",
+            riskLevel: "medium",
+            estimatedProfit: 0.5,
+            minAmount: BigInt("100000000"), // 100 USDC
+            maxAmount: BigInt("10000000000"), // 10,000 USDC
+          },
+          {
+            id: "usdc-sol-usdc",
+            name: "USDC → SOL → USDC",
+            description: "Arbitrage between USDC and SOL using Raydium",
+            tokenIn: "USDC",
+            tokenOut: "SOL",
+            protocol: "raydium",
+            riskLevel: "low",
+            estimatedProfit: 0.3,
+            minAmount: BigInt("100000000"), // 100 USDC
+            maxAmount: BigInt("50000000000"), // 50,000 USDC
+          },
+          {
+            id: "usdc-jup-usdc",
+            name: "USDC → JUP → USDC",
+            description: "Arbitrage between USDC and JUP using Jupiter",
+            tokenIn: "USDC",
+            tokenOut: "JUP",
+            protocol: "jupiter",
+            riskLevel: "high",
+            estimatedProfit: 1.2,
+            minAmount: BigInt("100000000"), // 100 USDC
+            maxAmount: BigInt("5000000000"), // 5,000 USDC
+          },
+        ];
+        
+        setStrategies(fallbackStrategies);
+        setSelectedStrategy("usdc-samo-usdc");
+        flashLoanServiceRef.current = null; // No service for Phantom-only
+        return;
+      }
+
       try {
         // Check if ethereum provider is available
         if (!window.ethereum) {
           console.log("No ethereum provider found");
-          setStrategies([]);
-          setSelectedStrategy("");
+          // Set fallback strategies even without ethereum
+          const fallbackStrategies: FlashLoanStrategy[] = [
+            {
+              id: "usdc-samo-usdc",
+              name: "USDC → SAMO → USDC",
+              description: "Arbitrage between USDC and SAMO using Orca Whirlpool",
+              tokenIn: "USDC",
+              tokenOut: "SAMO",
+              protocol: "orca",
+              riskLevel: "medium",
+              estimatedProfit: 0.5,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("10000000000"),
+            },
+            {
+              id: "usdc-sol-usdc",
+              name: "USDC → SOL → USDC",
+              description: "Arbitrage between USDC and SOL using Raydium",
+              tokenIn: "USDC",
+              tokenOut: "SOL",
+              protocol: "raydium",
+              riskLevel: "low",
+              estimatedProfit: 0.3,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("50000000000"),
+            },
+            {
+              id: "usdc-jup-usdc",
+              name: "USDC → JUP → USDC",
+              description: "Arbitrage between USDC and JUP using Jupiter",
+              tokenIn: "USDC",
+              tokenOut: "JUP",
+              protocol: "jupiter",
+              riskLevel: "high",
+              estimatedProfit: 1.2,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("5000000000"),
+            },
+          ];
+          setStrategies(fallbackStrategies);
+          setSelectedStrategy("usdc-samo-usdc");
           flashLoanServiceRef.current = null;
           return;
         }
@@ -217,8 +309,48 @@ export default function FlashLoan() {
 
         if (!accounts || accounts.length === 0) {
           console.log("No accounts connected");
-          setStrategies([]);
-          setSelectedStrategy("");
+          // Still set up fallback strategies even without accounts
+          const fallbackStrategies: FlashLoanStrategy[] = [
+            {
+              id: "usdc-samo-usdc",
+              name: "USDC → SAMO → USDC",
+              description: "Arbitrage between USDC and SAMO using Orca Whirlpool",
+              tokenIn: "USDC",
+              tokenOut: "SAMO",
+              protocol: "orca",
+              riskLevel: "medium",
+              estimatedProfit: 0.5,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("10000000000"),
+            },
+            {
+              id: "usdc-sol-usdc",
+              name: "USDC → SOL → USDC",
+              description: "Arbitrage between USDC and SOL using Raydium",
+              tokenIn: "USDC",
+              tokenOut: "SOL",
+              protocol: "raydium",
+              riskLevel: "low",
+              estimatedProfit: 0.3,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("50000000000"),
+            },
+            {
+              id: "usdc-jup-usdc",
+              name: "USDC → JUP → USDC",
+              description: "Arbitrage between USDC and JUP using Jupiter",
+              tokenIn: "USDC",
+              tokenOut: "JUP",
+              protocol: "jupiter",
+              riskLevel: "high",
+              estimatedProfit: 1.2,
+              minAmount: BigInt("100000000"),
+              maxAmount: BigInt("5000000000"),
+            },
+          ];
+          
+          setStrategies(fallbackStrategies);
+          setSelectedStrategy("usdc-samo-usdc");
           flashLoanServiceRef.current = null;
           return;
         }
@@ -255,22 +387,63 @@ export default function FlashLoan() {
           "Error details:",
           err instanceof Error ? err.message : "Unknown error"
         );
-        setStrategies([]);
-        setSelectedStrategy("");
+        
+        // Set fallback strategies even on error
+        const fallbackStrategies: FlashLoanStrategy[] = [
+          {
+            id: "usdc-samo-usdc",
+            name: "USDC → SAMO → USDC",
+            description: "Arbitrage between USDC and SAMO using Orca Whirlpool",
+            tokenIn: "USDC",
+            tokenOut: "SAMO",
+            protocol: "orca",
+            riskLevel: "medium",
+            estimatedProfit: 0.5,
+            minAmount: BigInt("100000000"),
+            maxAmount: BigInt("10000000000"),
+          },
+          {
+            id: "usdc-sol-usdc",
+            name: "USDC → SOL → USDC",
+            description: "Arbitrage between USDC and SOL using Raydium",
+            tokenIn: "USDC",
+            tokenOut: "SOL",
+            protocol: "raydium",
+            riskLevel: "low",
+            estimatedProfit: 0.3,
+            minAmount: BigInt("100000000"),
+            maxAmount: BigInt("50000000000"),
+          },
+          {
+            id: "usdc-jup-usdc",
+            name: "USDC → JUP → USDC",
+            description: "Arbitrage between USDC and JUP using Jupiter",
+            tokenIn: "USDC",
+            tokenOut: "JUP",
+            protocol: "jupiter",
+            riskLevel: "high",
+            estimatedProfit: 1.2,
+            minAmount: BigInt("100000000"),
+            maxAmount: BigInt("5000000000"),
+          },
+        ];
+        
+        setStrategies(fallbackStrategies);
+        setSelectedStrategy("usdc-samo-usdc");
         flashLoanServiceRef.current = null;
 
         // Show user-friendly error
         toast({
           title: "Service Setup Failed",
           description:
-            "Failed to initialize flash loan service. Please refresh and try again.",
+            "Using fallback strategies. For full functionality, connect MetaMask or use Phantom with EVM support.",
           variant: "destructive",
         });
       }
     }
 
     setupServiceAndFetchStrategies();
-  }, [isConnected, toast]);
+  }, [isConnected, walletType, ethereumAddress, toast]);
 
   const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e"; // 245022926 in hex
 
@@ -282,6 +455,8 @@ export default function FlashLoan() {
     console.log("selectedStrategy:", selectedStrategy);
     console.log("strategies:", strategies);
     console.log("flashLoanServiceRef.current:", !!flashLoanServiceRef.current);
+    console.log("walletType:", walletType);
+    console.log("ethereumAddress:", ethereumAddress);
 
     if (!isConnected) {
       toast({
@@ -291,6 +466,17 @@ export default function FlashLoan() {
       });
       return;
     }
+    
+    // Check if using Phantom without EVM support
+    if (walletType === "phantom" && !ethereumAddress) {
+      toast({
+        title: "MetaMask Required",
+        description: "Flash loans require MetaMask or Phantom with EVM support. Please connect MetaMask or upgrade your Phantom wallet.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!amount || parseFloat(amount) <= 0) {
       toast({
         title: "Invalid Amount",
@@ -317,7 +503,7 @@ export default function FlashLoan() {
       toast({
         title: "Service Not Ready",
         description:
-          "Flash loan service is not initialized. Please refresh and try again.",
+          "Flash loan service requires MetaMask or Phantom with EVM support. Please connect MetaMask.",
         variant: "destructive",
       });
       return;
