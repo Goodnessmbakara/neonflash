@@ -99,17 +99,100 @@ export async function POST(req: NextRequest) {
         const rpcUrl = CONFIG.networks.ethereum.devnet.rpcUrl;
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         
-        // Create a signer (this would need to be a funded account in production)
-        // For now, we'll use a simple approach
+        // USDC contract address
         const usdcContractAddress = '0x146c38c2E36D34Ed88d843E013677cCe72341794';
         
-        // Note: In a real implementation, you'd need a funded account to mint USDC
-        // For now, we'll return a message indicating the user needs to get USDC elsewhere
-        return NextResponse.json({ 
-          success: false, 
-          message: 'USDC airdrop not available. Please get USDC from a DEX or faucet.',
-          usdcContractAddress 
-        });
+        // USDC contract ABI for mint function
+        const usdcAbi = [
+          'function mint(address to, uint256 amount) external',
+          'function balanceOf(address account) external view returns (uint256)',
+          'function totalSupply() external view returns (uint256)',
+          'function name() external view returns (string)',
+          'function symbol() external view returns (string)'
+        ];
+        
+        const usdcContract = new ethers.Contract(usdcContractAddress, usdcAbi, provider);
+        
+        // Check current balance
+        const beforeBalance = await usdcContract.balanceOf(address);
+        console.log(`USDC balance before airdrop: ${ethers.formatUnits(beforeBalance, 6)} USDC`);
+        
+        // For testing, we'll try to mint some USDC
+        const airdropAmount = ethers.parseUnits('1000', 6); // 1000 USDC
+        
+        // Try to find a funded account to mint from
+        // Note: In production, you'd have a proper funded account
+        const testPrivateKey = process.env.TEST_PRIVATE_KEY;
+        
+        if (!testPrivateKey) {
+          console.log('No test private key available. Providing guidance instead.');
+          return NextResponse.json({ 
+            success: false, 
+            message: 'USDC airdrop requires a funded account. Please get USDC from a DEX or use the minting script.',
+            guidance: [
+              '1. Run: node scripts/mint-usdc.js (requires PRIVATE_KEY env var)',
+              '2. Visit https://neonfaucet.org/ for NEON tokens',
+              '3. Use a DEX like Orca or Raydium to swap NEON for USDC',
+              '4. Minimum required: ~10 USDC for flash loan fees'
+            ],
+            usdcContractAddress,
+            requiredAmount: '10 USDC for testing'
+          });
+        }
+        
+        try {
+          // Create signer with test private key
+          const signer = new ethers.Wallet(testPrivateKey, provider);
+          const signerAddress = await signer.getAddress();
+          console.log(`Using signer address: ${signerAddress}`);
+          
+          // Check signer balance
+          const signerBalance = await provider.getBalance(signerAddress);
+          console.log(`Signer NEON balance: ${ethers.formatUnits(signerBalance, 18)} NEON`);
+          
+          if (signerBalance < ethers.parseEther('0.01')) {
+            throw new Error('Insufficient NEON balance for gas');
+          }
+          
+          // Create contract instance with signer
+          const usdcContractWithSigner = usdcContract.connect(signer);
+          
+          // Mint USDC
+          console.log(`Minting ${ethers.formatUnits(airdropAmount, 6)} USDC to ${address}...`);
+          const tx = await usdcContractWithSigner.mint(address, airdropAmount, {
+            gasLimit: 200000
+          });
+          
+          console.log(`Transaction sent: ${tx.hash}`);
+          const receipt = await tx.wait();
+          console.log(`Transaction confirmed: ${receipt.blockNumber}`);
+          
+          // Check new balance
+          const afterBalance = await usdcContract.balanceOf(address);
+          console.log(`USDC balance after airdrop: ${ethers.formatUnits(afterBalance, 6)} USDC`);
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: `Successfully minted ${ethers.formatUnits(airdropAmount, 6)} USDC to your wallet!`,
+            transactionHash: tx.hash,
+            beforeBalance: ethers.formatUnits(beforeBalance, 6),
+            afterBalance: ethers.formatUnits(afterBalance, 6),
+            mintedAmount: ethers.formatUnits(airdropAmount, 6)
+          });
+          
+        } catch (mintError: any) {
+          console.error('USDC minting failed:', mintError);
+          return NextResponse.json({ 
+            success: false, 
+            message: 'USDC minting failed. Please use the minting script or get USDC from a DEX.',
+            error: mintError.message,
+            guidance: [
+              '1. Run: node scripts/mint-usdc.js (requires PRIVATE_KEY env var)',
+              '2. Visit https://neonfaucet.org/ for NEON tokens',
+              '3. Use a DEX like Orca or Raydium to swap NEON for USDC'
+            ]
+          });
+        }
       } catch (error: any) {
         console.error('USDC airdrop error:', error);
         return NextResponse.json({ 

@@ -7,37 +7,30 @@ import { useToast } from '@/hooks/use-toast';
 export interface UseWalletReturn {
   // State
   isConnected: boolean;
-  walletType: 'metamask' | 'phantom' | 'dual' | null;
+  walletType: 'metamask' | null;
   ethereumAddress: string | null;
-  solanaAddress: string | null;
   isLoading: boolean;
   error: string | null;
   
-  // Dual wallet state
+  // MetaMask state
   metamaskConnected: boolean;
-  phantomConnected: boolean;
   metamaskAddress: string | null;
-  phantomAddress: string | null;
-  isDualConnected: boolean;
   
   // Available wallets
   availableWallets: {
     metamask: boolean;
-    phantom: boolean;
   };
   
   // Actions
   connectMetaMask: () => Promise<void>;
-  connectPhantom: () => Promise<void>;
-  connectDualWallets: () => Promise<void>;
   disconnect: () => void;
   autoConnect: () => Promise<void>;
   
   // Utilities
   getShortAddress: (address: string) => string;
   getNetworkName: () => string;
-  getProviderForChain: (chain: 'neon' | 'solana') => any;
-  getAddressForChain: (chain: 'neon' | 'solana') => string | null;
+  getProviderForChain: (chain: 'neon') => any;
+  getAddressForChain: (chain: 'neon') => string | null;
 }
 
 export function useWallet(): UseWalletReturn {
@@ -46,7 +39,6 @@ export function useWallet(): UseWalletReturn {
   const [error, setError] = useState<string | null>(null);
   const [availableWallets, setAvailableWallets] = useState({
     metamask: false,
-    phantom: false,
   });
   const { toast } = useToast();
 
@@ -97,95 +89,6 @@ export function useWallet(): UseWalletReturn {
     }
   }, []);
 
-  // Connect to Phantom
-  const connectPhantom = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Try to use Phantom with EVM support first
-      if (window.solana && window.solana.isPhantom && window.solana.ethereum) {
-        console.log('Connecting Phantom with EVM support...');
-        await walletManager.connectPhantomWithEVM();
-        toast({
-          title: 'Phantom Connected with EVM Support!',
-          description: 'Phantom is now connected for both Solana and Neon EVM operations.',
-        });
-      } else {
-        console.log('Connecting Phantom (Solana only)...');
-      if (!window.solana || !window.solana.isPhantom) {
-        throw new Error('Phantom is not installed');
-      }
-      const response = await window.solana.connect();
-      const solanaAddress = response.publicKey.toString();
-      const ethereumAddress = await walletManager.deriveEthereumAddressFromSolana(solanaAddress);
-      walletManager.updateState({
-        isConnected: true,
-        walletType: 'phantom',
-        ethereumAddress,
-        solanaAddress,
-        ethereumProvider: null,
-        solanaProvider: window.solana,
-          metamaskConnected: false,
-          phantomConnected: true,
-          metamaskAddress: null,
-          phantomAddress: solanaAddress,
-      });
-      window.solana.on('accountChanged', walletManager.handleAccountChange.bind(walletManager));
-      window.solana.on('disconnect', walletManager.handleDisconnect.bind(walletManager));
-
-        toast({
-          title: 'Phantom Connected!',
-          description: 'Phantom is connected for Solana operations. For Neon EVM operations, you may need to connect MetaMask as well.',
-        });
-      }
-
-      // After connecting, check if the account exists on Solana Devnet
-      try {
-        const { Connection, PublicKey } = await import('@solana/web3.js');
-        const connection = new Connection('https://api.devnet.solana.com', 'processed');
-        const accountInfo = await connection.getAccountInfo(new PublicKey(solanaAddress));
-        if (!accountInfo) {
-          toast({
-            title: 'Warning: Account not found on Devnet',
-            description: 'Your Phantom wallet is not on Solana Devnet or the account does not exist on Devnet. You may need to airdrop some SOL to this address on Devnet.',
-            variant: 'destructive',
-          });
-        }
-      } catch (devnetCheckError) {
-        toast({
-          title: 'Devnet Check Failed',
-          description: 'Could not verify your account on Solana Devnet. Proceed with caution.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect Phantom';
-      setError(errorMessage);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  // Connect both wallets for cross-chain operations
-  const connectDualWallets = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await walletManager.connectDualWallets();
-      toast({
-        title: 'Dual Wallet Connected!',
-        description: 'Both MetaMask and Phantom are now connected for cross-chain operations.',
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect dual wallets';
-      setError(errorMessage);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
   // Disconnect wallet
   const disconnect = useCallback(() => {
     walletManager.disconnect();
@@ -218,8 +121,6 @@ export function useWallet(): UseWalletReturn {
     switch (state.walletType) {
       case 'metamask':
         return 'Ethereum';
-      case 'phantom':
-        return 'Solana';
       default:
         return 'Unknown';
     }
@@ -230,24 +131,18 @@ export function useWallet(): UseWalletReturn {
     isConnected: state.isConnected,
     walletType: state.walletType,
     ethereumAddress: state.ethereumAddress,
-    solanaAddress: state.solanaAddress,
     isLoading,
     error,
     
-    // Dual wallet state
+    // MetaMask state
     metamaskConnected: state.metamaskConnected,
-    phantomConnected: state.phantomConnected,
     metamaskAddress: state.metamaskAddress,
-    phantomAddress: state.phantomAddress,
-    isDualConnected: walletManager.isDualConnected(),
     
     // Available wallets
     availableWallets,
     
     // Actions
     connectMetaMask,
-    connectPhantom,
-    connectDualWallets,
     disconnect,
     autoConnect,
     

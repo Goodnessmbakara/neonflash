@@ -173,7 +173,7 @@ class WalletManager {
         throw new Error('MetaMask is not installed');
       }
       // Enforce Neon Devnet
-      const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e"; // 245022926 in hex
+      const NEON_DEVNET_CHAIN_ID = "0xe9ac0ce"; // 245022926 in hex (correct Neon Devnet)
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       if (chainId !== NEON_DEVNET_CHAIN_ID) {
         try {
@@ -187,14 +187,14 @@ class WalletManager {
               method: 'wallet_addEthereumChain',
               params: [{
                 chainId: NEON_DEVNET_CHAIN_ID,
-                chainName: 'Neon Devnet',
+                chainName: 'Neon EVM DevNet',
                 rpcUrls: ['https://devnet.neonevm.org'],
                 nativeCurrency: { name: 'Neon', symbol: 'NEON', decimals: 18 },
-                blockExplorerUrls: ['https://neon-devnet.blockscout.com'],
+                blockExplorerUrls: ['https://devnet.neonscan.org'],
               }],
             });
           } else {
-            throw new Error('Please switch to Neon Devnet to connect.');
+            throw new Error('Please switch to Neon EVM DevNet to connect.');
           }
         }
         // After switching, re-check the chainId
@@ -439,9 +439,6 @@ class WalletManager {
     if (window.ethereum) {
       window.ethereum.removeAllListeners();
     }
-    if (window.solana) {
-      window.solana.removeAllListeners();
-    }
 
     this.updateState({
       isConnected: false,
@@ -463,30 +460,25 @@ class WalletManager {
   }
 
   // Get the appropriate provider for a given chain
-  getProviderForChain(chain: 'neon' | 'solana'): any {
+  getProviderForChain(chain: 'neon'): any {
     if (chain === 'neon') {
       return this.state.ethereumProvider;
-    } else if (chain === 'solana') {
-      return this.state.solanaProvider;
     }
     return null;
   }
 
   // Get the appropriate address for a given chain
-  getAddressForChain(chain: 'neon' | 'solana'): string | null {
+  getAddressForChain(chain: 'neon'): string | null {
     if (chain === 'neon') {
       return this.state.metamaskAddress || this.state.ethereumAddress;
-    } else if (chain === 'solana') {
-      return this.state.phantomAddress || this.state.solanaAddress;
     }
     return null;
   }
 
   // Get available wallets
-  async getAvailableWallets(): Promise<{ metamask: boolean; phantom: boolean }> {
+  async getAvailableWallets(): Promise<{ metamask: boolean }> {
     return {
       metamask: await this.checkMetaMask(),
-      phantom: await this.checkPhantom(),
     };
   }
 
@@ -496,24 +488,12 @@ class WalletManager {
       // Check if MetaMask was previously connected
       if (await this.checkMetaMask() && window.ethereum.selectedAddress) {
         // Check network before connecting
-        const NEON_DEVNET_CHAIN_ID = "0xeeb2e6e";
+        const NEON_DEVNET_CHAIN_ID = "0xe9ac0ce"; // Updated to correct Neon Devnet chain ID
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         if (chainId === NEON_DEVNET_CHAIN_ID) {
           return await this.connectMetaMask();
         } else {
           console.log('MetaMask not on Neon Devnet, skipping auto-connect');
-          return null;
-        }
-      }
-
-      // Check if Phantom was previously connected
-      if (await this.checkPhantom() && window.solana.isConnected) {
-        // Check network before connecting
-        const SOLANA_DEVNET_CHAIN = "devnet";
-        if (window.solana.network === SOLANA_DEVNET_CHAIN) {
-          return await this.connectPhantom();
-        } else {
-          console.log('Phantom not on Solana Devnet, skipping auto-connect');
           return null;
         }
       }

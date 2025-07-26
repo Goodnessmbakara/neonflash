@@ -122,11 +122,20 @@ export class FlashLoanService {
       const feeAmount = (amount * fee) / BigInt(10000);
       console.log(`[STEP 1] Flash Loan Fee: ${ethers.formatUnits(feeAmount, 6)} USDC (${fee} basis points)`);
       
-      if (balance < feeAmount) {
+      // DEVELOPMENT MODE: Bypass USDC balance check for testing
+      const isDevelopmentMode = process.env.NODE_ENV === 'development' || process.env.BYPASS_USDC_CHECK === 'true';
+      
+      if (balance < feeAmount && !isDevelopmentMode) {
         console.log(`[STEP 1] INSUFFICIENT BALANCE: Need ${ethers.formatUnits(feeAmount, 6)} USDC for fee, have ${ethers.formatUnits(balance, 6)} USDC`);
         throw new Error(`Insufficient USDC balance. Need ${ethers.formatUnits(feeAmount, 6)} USDC for flash loan fee, but have ${ethers.formatUnits(balance, 6)} USDC`);
       }
-      console.log(`[STEP 1] SUFFICIENT BALANCE: Proceeding with flash loan`);
+      
+      if (isDevelopmentMode && balance < feeAmount) {
+        console.log(`[STEP 1] DEVELOPMENT MODE: Bypassing USDC balance check for testing`);
+        console.log(`[STEP 1] In production, you would need ${ethers.formatUnits(feeAmount, 6)} USDC for fees`);
+      } else {
+        console.log(`[STEP 1] SUFFICIENT BALANCE: Proceeding with flash loan`);
+      }
       
       const strategies = await this.getStrategies();
       const strategy = strategies.find(s => s.id === strategyId);

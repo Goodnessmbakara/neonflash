@@ -60,10 +60,10 @@ export function AirdropButton({ className = "" }: { className?: string }) {
   };
 
   const handleUSDCAirdrop = async () => {
-    if (!isConnected || walletType !== "phantom") {
+    if (!isConnected || !ethereumAddress) {
       toast({
         title: "Wallet Not Connected",
-        description: "Connect your Phantom wallet to receive USDC",
+        description: "Connect your MetaMask wallet to receive USDC",
         variant: "destructive",
       });
       return;
@@ -98,21 +98,21 @@ export function AirdropButton({ className = "" }: { className?: string }) {
 
   return (
     <div className="flex gap-2">
-    <Button
-      onClick={handleAirdrop}
-      disabled={loading}
-      variant="outline"
-      className={className}
-      title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
-    >
-      {loading ? (
-        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-      ) : (
-        <Gift className="h-4 w-4 mr-2" />
-      )}
+      <Button
+        onClick={handleAirdrop}
+        disabled={loading}
+        variant="outline"
+        className={className}
+        title="Airdrop test NEON (Neon EVM) or SOL (Solana) to your wallet"
+      >
+        {loading ? (
+          <Loader2 className="animate-spin h-4 w-4 mr-2" />
+        ) : (
+          <Gift className="h-4 w-4 mr-2" />
+        )}
         Airdrop Gas
       </Button>
-      {walletType === "phantom" && (
+      {isConnected && ethereumAddress && (
         <Button
           onClick={handleUSDCAirdrop}
           disabled={loading}
@@ -126,7 +126,7 @@ export function AirdropButton({ className = "" }: { className?: string }) {
             <Gift className="h-4 w-4 mr-2" />
           )}
           Get USDC
-    </Button>
+        </Button>
       )}
     </div>
   );

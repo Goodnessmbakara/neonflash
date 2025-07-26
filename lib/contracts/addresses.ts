@@ -26,9 +26,9 @@ export const CONTRACT_ADDRESSES = {
 export const NETWORK_CONFIG = {
   NEON_DEVNET: {
     chainId: 245022926,
-    name: 'Neon EVM Devnet',
+    name: 'Neon EVM DevNet',
     rpcUrl: 'https://devnet.neonevm.org',
-    explorer: 'https://neon-devnet.blockscout.com',
+    explorer: 'https://devnet.neonscan.org',
     currency: {
       name: 'NEON',
       symbol: 'NEON',

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import WalletAutoConnect from "@/components/wallet-auto-connect";
 
 export const metadata: Metadata = {
   title: "NeonFlash - Cross-Chain Flash Loan Platform",
@@ -53,7 +52,6 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <WalletAutoConnect />
           {children}
         </ThemeProvider>
       </body>

@@ -71,14 +71,28 @@ export class ContractSetupService {
       const contractAddress = await this.usdcContract.getAddress();
       console.log(`[USDC] Contract Address: ${contractAddress}`);
       
+      // Test basic contract call first
+      console.log(`[USDC] Testing basic contract call...`);
+      const code = await this.usdcContract.runner?.provider?.getCode(contractAddress);
+      console.log(`[USDC] Contract code length: ${code?.length || 0}`);
+      
+      if (!code || code === '0x') {
+        console.error(`[USDC] No contract code found at address ${contractAddress}`);
+        return false;
+      }
+      
       // Try to get total supply to verify contract is working
+      console.log(`[USDC] Calling totalSupply()...`);
       const totalSupply = await this.usdcContract.totalSupply();
       console.log(`[USDC] Total Supply: ${ethers.formatUnits(totalSupply, 6)} USDC`);
       
       // Try to get name and symbol
+      console.log(`[USDC] Calling name()...`);
       const name = await this.usdcContract.name();
-      const symbol = await this.usdcContract.symbol();
       console.log(`[USDC] Token Name: ${name}`);
+      
+      console.log(`[USDC] Calling symbol()...`);
+      const symbol = await this.usdcContract.symbol();
       console.log(`[USDC] Token Symbol: ${symbol}`);
       
       console.log('=== USDC CONTRACT VERIFICATION COMPLETE ===');
@@ -86,6 +100,14 @@ export class ContractSetupService {
     } catch (error) {
       console.error('=== USDC CONTRACT VERIFICATION FAILED ===');
       console.error('Error details:', error);
+      
+      // Log more specific error information
+      if (error instanceof Error) {
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
       return false;
     }
   }
