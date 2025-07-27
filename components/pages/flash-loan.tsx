@@ -802,6 +802,10 @@ export default function FlashLoan() {
       );
 
       // Handle results
+      console.log(
+        "Setting flash loan result with transaction hash:",
+        result.transactionHash
+      );
       setFlashLoanResult({
         ...result,
         profit: result.profit ? result.profit.toString() : undefined,
@@ -1392,8 +1396,6 @@ export default function FlashLoan() {
                     </Badge>
                   </div>
                 )}
-
-
               </div>
             </div>
           </CardContent>

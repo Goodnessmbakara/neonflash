@@ -150,6 +150,10 @@ export function FlashLoanTransactionStatus({
   isExecuting,
 }: FlashLoanTransactionStatusProps) {
   const { toast } = useToast();
+  
+  // Debug logging
+  console.log("FlashLoanTransactionStatus received mainTransactionHash:", mainTransactionHash);
+  console.log("FlashLoanTransactionStatus received steps:", steps);
 
   const copyMainHash = async () => {
     if (mainTransactionHash) {
