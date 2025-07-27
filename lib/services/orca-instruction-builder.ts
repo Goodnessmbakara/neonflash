@@ -65,7 +65,7 @@ export class OrcaInstructionBuilder {
         // Base58 format (most common for Solana)
         console.log('Detected base58 format');
         const bs58 = await import('bs58');
-        privateKeyBytes = bs58.decode(solanaPrivateKey);
+        privateKeyBytes = bs58.default.decode(solanaPrivateKey);
       } else if (solanaPrivateKey.startsWith('0x')) {
         // Hex format with 0x prefix
         console.log('Detected hex format with 0x');
@@ -79,7 +79,7 @@ export class OrcaInstructionBuilder {
         console.log('Trying base58 as fallback');
         try {
           const bs58 = await import('bs58');
-          privateKeyBytes = bs58.decode(solanaPrivateKey);
+          privateKeyBytes = bs58.default.decode(solanaPrivateKey);
         } catch (e) {
           throw new Error(`Unsupported private key format. Length: ${solanaPrivateKey.length}. Please provide base58 or hex format.`);
         }
