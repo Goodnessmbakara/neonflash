@@ -207,30 +207,49 @@ export function FlashLoanTransactionStatus({
           />
         </div>
 
+        {/* Transaction Hash - Always visible when available */}
         {mainTransactionHash && (
-          <div className="pt-4 border-t">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="pt-3">
+            <div
+              className={`rounded-lg p-3 ${
+                anyStepFailed
+                  ? "bg-red-50 border border-red-200"
+                  : "bg-green-50 border border-green-200"
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="font-medium text-blue-900 mb-1">
+                  <p
+                    className={`font-medium text-sm ${
+                      anyStepFailed ? "text-red-900" : "text-green-900"
+                    }`}
+                  >
                     Transaction Hash
                   </p>
-                  <p className="text-sm font-mono text-blue-700 break-all">
+                  <p
+                    className={`text-xs font-mono break-all mt-1 ${
+                      anyStepFailed ? "text-red-700" : "text-green-700"
+                    }`}
+                  >
                     {mainTransactionHash}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-1 ml-3">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={copyMainHash}
-                    className="h-8 px-3 text-blue-700 border-blue-300 hover:bg-blue-100"
+                    className={`h-7 w-7 p-0 ${
+                      anyStepFailed
+                        ? "text-red-600 hover:bg-red-100"
+                        : "text-green-600 hover:bg-green-100"
+                    }`}
+                    title="Copy transaction hash"
                   >
-                    <Copy className="h-4 w-4 mr-1" />
-                    Copy
+                    <Copy className="h-3 w-3" />
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() =>
                       window.open(
@@ -238,10 +257,14 @@ export function FlashLoanTransactionStatus({
                         "_blank"
                       )
                     }
-                    className="h-8 px-3 text-blue-700 border-blue-300 hover:bg-blue-100"
+                    className={`h-7 w-7 p-0 ${
+                      anyStepFailed
+                        ? "text-red-600 hover:bg-red-100"
+                        : "text-green-600 hover:bg-green-100"
+                    }`}
+                    title="View on Neonscan"
                   >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    View
+                    <ExternalLink className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
