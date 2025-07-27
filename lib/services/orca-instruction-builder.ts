@@ -41,11 +41,11 @@ export class OrcaInstructionBuilder {
     console.log('Using Solana private key from environment (like reference implementation)');
 
     // Import only what we need for basic instruction building
-    const web3 = await import('@solana/web3.js');
-    const splToken = await import('@solana/spl-token');
+    const { Connection, Keypair, PublicKey } = await import('@solana/web3.js');
+    const { getAssociatedTokenAddress } = await import('@solana/spl-token');
 
     // Create connection exactly like reference implementation
-    const connection = new web3.default.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
+    const connection = new Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
     
     // Create real wallet from private key (like reference implementation)
     let wallet;
@@ -66,7 +66,7 @@ export class OrcaInstructionBuilder {
         privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey, 'hex'));
       }
 
-      const keypair = web3.default.Keypair.fromSecretKey(privateKeyBytes);
+      const keypair = Keypair.fromSecretKey(privateKeyBytes);
       console.log('Created real Solana keypair from private key:', keypair.publicKey.toBase58());
 
       wallet = {
@@ -88,8 +88,8 @@ export class OrcaInstructionBuilder {
     }
 
     // Token configuration exactly like reference implementation
-    const TokenA = { mint: new web3.default.PublicKey(params.tokenInMint), decimals: 6 }; // devUSDC
-    const TokenB = { mint: new web3.default.PublicKey(params.tokenOutMint), decimals: 9 }; // devSAMO
+    const TokenA = { mint: new PublicKey(params.tokenInMint), decimals: 6 }; // devUSDC
+    const TokenB = { mint: new PublicKey(params.tokenOutMint), decimals: 9 }; // devSAMO
     const tickSpacing = 64;
 
     console.log('Token A (USDC):', TokenA.mint.toBase58());
@@ -97,15 +97,15 @@ export class OrcaInstructionBuilder {
     console.log('Tick spacing:', tickSpacing);
 
     // Get associated token addresses exactly like reference implementation
-    const ataContractTokenA = await splToken.getAssociatedTokenAddress(
+    const ataContractTokenA = await getAssociatedTokenAddress(
       TokenA.mint,
-      new web3.default.PublicKey(params.contractAddress),
+      new PublicKey(params.contractAddress),
       true
     );
 
-    const ataContractTokenB = await splToken.getAssociatedTokenAddress(
+    const ataContractTokenB = await getAssociatedTokenAddress(
       TokenB.mint,
-      new web3.default.PublicKey(params.contractAddress),
+      new PublicKey(params.contractAddress),
       true
     );
 
@@ -114,7 +114,7 @@ export class OrcaInstructionBuilder {
       'ContractData',
       params.tokenInMint,
       params.contractAddress,
-      new web3.default.PublicKey(this.neonEvmProgramId)
+      new PublicKey(this.neonEvmProgramId)
     ))[0];
     console.log('Contract PDA devUSDC:', contractPDAdevUSDC.toBase58());
 
@@ -131,7 +131,7 @@ export class OrcaInstructionBuilder {
       TokenB.mint,
       ataContractTokenA,
       ataContractTokenB,
-      new web3.default.PublicKey(params.contractAddress),
+      new PublicKey(params.contractAddress),
       amountIn,
       0 // 0% slippage for first swap
     );
@@ -144,7 +144,7 @@ export class OrcaInstructionBuilder {
       TokenA.mint,
       ataContractTokenB,
       contractPDAdevUSDC,
-      new web3.default.PublicKey(params.contractAddress),
+      new PublicKey(params.contractAddress),
       estimatedSAMOAmount,
       5 // 0.5% slippage for second swap
     );
@@ -170,17 +170,17 @@ export class OrcaInstructionBuilder {
     // Create a simplified swap instruction that matches Orca's structure
     // This avoids the need to fetch whirlpool accounts that cause AdaptiveFeeTier errors
     
-    const web3 = await import('@solana/web3.js');
+    const { PublicKey } = await import('@solana/web3.js');
     
     const instruction = {
-      programId: new web3.default.PublicKey('whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc'), // Orca program
+      programId: new PublicKey('whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc'), // Orca program
       keys: [
         { pubkey: tokenInMint, isSigner: false, isWritable: false },
         { pubkey: tokenOutMint, isSigner: false, isWritable: false },
         { pubkey: tokenInAccount, isSigner: false, isWritable: true },
         { pubkey: tokenOutAccount, isSigner: false, isWritable: true },
         { pubkey: owner, isSigner: true, isWritable: false },
-        { pubkey: new web3.default.PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
       ],
       data: Buffer.from([0x01, ...new Uint8Array(8).fill(0)]) // Simplified swap instruction data
     };
@@ -205,13 +205,13 @@ export class OrcaInstructionBuilder {
   ): Promise<[any, number]> {
     // This should match the reference implementation's calculatePdaAccount function
     // For now, return a placeholder
-    const web3 = await import('@solana/web3.js');
+    const { PublicKey } = await import('@solana/web3.js');
     const seeds = [
       Buffer.from(prefix),
       Buffer.from(tokenEvmAddress.slice(2), 'hex'), // Remove '0x' prefix
       Buffer.from(contractAddress.slice(2), 'hex'), // Remove '0x' prefix
     ];
     
-    return web3.default.PublicKey.findProgramAddressSync(seeds, neonEvmProgram);
+    return PublicKey.findProgramAddressSync(seeds, neonEvmProgram);
   }
 } 
