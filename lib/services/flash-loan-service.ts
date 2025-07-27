@@ -177,9 +177,10 @@ export class FlashLoanService {
       // Build real Orca swap instructions exactly like reference implementation
       console.log(`[STEP 4] Building Orca swap instructions...`);
       
-      // Use hardcoded real Solana address for testing
+      // Use hardcoded real Solana address for testing (matching reference implementation)
       const userSolanaAddress = '4de59aRfCH6MQPRktbMrKmrLCrQm5Rfsf4bU4Gyrtc6x';
       console.log(`[STEP 4] Using hardcoded real Solana address: ${userSolanaAddress}`);
+      console.log(`[STEP 4] This matches reference implementation approach`);
       
       const orcaParams: OrcaSwapParams = {
         amountIn: ethers.formatUnits(amount, 6), // Convert to string with 6 decimals
@@ -190,25 +191,13 @@ export class FlashLoanService {
         solanaAddress: userSolanaAddress
       };
       
-      let orcaInstructions;
-      let instructionData1: string;
-      let instructionData2: string;
+      // Build Orca instructions exactly like reference implementation (no fallback)
+      const orcaInstructions = await this.orcaBuilder.buildOrcaSwapInstructions(orcaParams);
+      console.log(`[STEP 4] Orca instructions built successfully`);
       
-      try {
-        orcaInstructions = await this.orcaBuilder.buildOrcaSwapInstructions(orcaParams);
-        console.log(`[STEP 4] Orca instructions built successfully`);
-        
-        // Prepare instructions for flash loan contract exactly like reference implementation
-        instructionData1 = this.orcaBuilder.prepareInstruction(orcaInstructions[0].instructions[0]);
-        instructionData2 = this.orcaBuilder.prepareInstruction(orcaInstructions[1].instructions[0]);
-      } catch (error) {
-        console.error(`[STEP 4] Failed to build Orca instructions: ${error}`);
-        console.log(`[STEP 4] Using empty instructions for testing (like reference implementation)`);
-        
-        // Use empty instructions as fallback (matching reference implementation behavior)
-        instructionData1 = '0x';
-        instructionData2 = '0x';
-      }
+      // Prepare instructions for flash loan contract exactly like reference implementation
+      const instructionData1 = this.orcaBuilder.prepareInstruction(orcaInstructions[0].instructions[0]);
+      const instructionData2 = this.orcaBuilder.prepareInstruction(orcaInstructions[1].instructions[0]);
       
       console.log(`[STEP 4] Instruction 1 prepared: ${instructionData1.substring(0, 20)}...`);
       console.log(`[STEP 4] Instruction 2 prepared: ${instructionData2.substring(0, 20)}...`);
