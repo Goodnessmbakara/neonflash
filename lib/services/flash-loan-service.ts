@@ -177,24 +177,27 @@ export class FlashLoanService {
       // Build real Orca swap instructions exactly like reference implementation
       console.log(`[STEP 4] Building Orca swap instructions...`);
       
-      // Get user's Solana address if available (derived from MetaMask)
+      // Get user's real Solana address from connected wallet
       let userSolanaAddress: string | undefined;
       try {
-        // Simple deterministic derivation without requiring user interaction
-        // This creates a consistent Solana address from the Ethereum address
-        const { ethers } = await import('ethers');
-        const { PublicKey } = await import('@solana/web3.js');
-        
-        // Create a deterministic hash from the Ethereum address
-        const hash = ethers.keccak256(ethers.toUtf8Bytes(userAddress));
-        const publicKeyBytes = ethers.getBytes(hash).slice(0, 32);
-        
-        // Create a Solana public key from the derived bytes
-        const publicKey = new PublicKey(publicKeyBytes);
-        userSolanaAddress = publicKey.toString();
-        console.log(`[STEP 4] Derived Solana address from MetaMask: ${userSolanaAddress}`);
+        // Check if Phantom is connected and get real Solana address
+        if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom && window.solana.isConnected) {
+          userSolanaAddress = window.solana.publicKey?.toString();
+          console.log(`[STEP 4] Using real Phantom Solana address: ${userSolanaAddress}`);
+        } else {
+          // Check if we have a stored Solana address from dual wallet connection
+          const { walletManager } = await import('../wallet');
+          const walletState = walletManager.getState();
+          if (walletState.solanaAddress) {
+            userSolanaAddress = walletState.solanaAddress;
+            console.log(`[STEP 4] Using stored Solana address: ${userSolanaAddress}`);
+          } else {
+            console.log(`[STEP 4] No real Solana address available, will use dummy keypair`);
+            console.log(`[STEP 4] To use your real Solana address, please connect Phantom wallet`);
+          }
+        }
       } catch (error) {
-        console.log(`[STEP 4] Could not derive Solana address, will use dummy keypair: ${error}`);
+        console.log(`[STEP 4] Could not get real Solana address, will use dummy keypair: ${error}`);
       }
       
       const orcaParams: OrcaSwapParams = {
