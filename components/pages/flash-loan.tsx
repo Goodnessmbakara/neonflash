@@ -25,6 +25,8 @@ import {
 import { ContractSetupService } from "@/lib/services/contract-setup";
 import { ethers } from "ethers";
 import { NETWORK_CONFIG } from "@/lib/contracts/addresses";
+import { SimpleContractSetupService } from "../../lib/services/simple-contract-setup";
+import { ENVIRONMENT_CONFIG } from "@/lib/config/environment";
 
 export default function FlashLoan() {
   const [isClient, setIsClient] = useState(false);
@@ -60,7 +62,8 @@ export default function FlashLoan() {
 
     try {
       const chainId = await window.ethereum.request({ method: "eth_chainId" });
-      const isCorrect = chainId === "0xe9ac0ce"; // Neon Devnet chain ID (245022926)
+      const isCorrect =
+        chainId === `0x${ENVIRONMENT_CONFIG.NEON.CHAIN_ID.toString(16)}`; // Neon Devnet chain ID
       const networkName = isCorrect
         ? "Neon EVM DevNet"
         : chainId === "0xaa36a7"
@@ -227,8 +230,8 @@ export default function FlashLoan() {
           protocol: "orca",
           riskLevel: "medium",
           estimatedProfit: 0.5, // 0.5%
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals: 1 * 10^6)
-          maxAmount: BigInt("10000000"), // 10 USDC (6 decimals: 10 * 10^6)
+          minAmount: BigInt("10000000"), // 10 USDC (6 decimals: 10 * 10^6) - like reference implementation
+          maxAmount: BigInt("10000000000"), // 10,000 USDC (6 decimals: 10000 * 10^6)
         },
         {
           id: "usdc-sol-usdc",
@@ -239,8 +242,8 @@ export default function FlashLoan() {
           protocol: "raydium",
           riskLevel: "low",
           estimatedProfit: 0.3, // 0.3%
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals)
-          maxAmount: BigInt("10000000"), // 10 USDC (6 decimals)
+          minAmount: BigInt("10000000"), // 10 USDC (6 decimals) - like reference implementation
+          maxAmount: BigInt("50000000000"), // 50,000 USDC (6 decimals)
         },
         {
           id: "usdc-jup-usdc",
@@ -251,8 +254,8 @@ export default function FlashLoan() {
           protocol: "jupiter",
           riskLevel: "high",
           estimatedProfit: 1.2, // 1.2%
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals)
-          maxAmount: BigInt("10000000"), // 10 USDC (6 decimals)
+          minAmount: BigInt("10000000"), // 10 USDC (6 decimals) - like reference implementation
+          maxAmount: BigInt("5000000000"), // 5,000 USDC (6 decimals)
         },
       ];
 
@@ -360,8 +363,8 @@ export default function FlashLoan() {
           protocol: "orca",
           riskLevel: "medium",
           estimatedProfit: 0.5,
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals: 1 * 10^6)
-          maxAmount: BigInt("10000000"), // 10 USDC (6 decimals: 10 * 10^6)
+          minAmount: BigInt("10000000"), // 10 USDC (6 decimals: 1 * 10^6)
+          maxAmount: BigInt("10000000000"), // 10 USDC (6 decimals: 10 * 10^6)
         },
         {
           id: "usdc-sol-usdc",
@@ -372,7 +375,7 @@ export default function FlashLoan() {
           protocol: "raydium",
           riskLevel: "low",
           estimatedProfit: 0.3,
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals)
+          minAmount: BigInt("10000000"), // 1 USDC (6 decimals)
           maxAmount: BigInt("10000000"), // 10 USDC (6 decimals)
         },
         {
@@ -384,8 +387,8 @@ export default function FlashLoan() {
           protocol: "jupiter",
           riskLevel: "high",
           estimatedProfit: 1.2,
-          minAmount: BigInt("1000000"), // 1 USDC (6 decimals)
-          maxAmount: BigInt("10000000"), // 10 USDC (6 decimals)
+          minAmount: BigInt("10000000"), // 100 USDC (6 decimals)
+          maxAmount: BigInt("5000000000"), // 5,000 USDC (6 decimals)
         },
       ];
 
@@ -740,7 +743,10 @@ export default function FlashLoan() {
       }
 
       const provider = new ethers.BrowserProvider(ethereumProvider);
-      const contractSetup = new ContractSetupService(provider, signer);
+
+      // Use simple contract setup service (user's wallet as "owner" like reference implementation)
+      const contractSetup = new SimpleContractSetupService(provider, signer);
+      console.log("Simple contract setup service created successfully");
 
       const userEvmAddress = await signer.getAddress();
       console.log("User EVM Address:", userEvmAddress);
@@ -757,28 +763,27 @@ export default function FlashLoan() {
         return;
       }
 
-      // Check user balance
-      const hasBalance = await contractSetup.checkUserBalanceForFee(
-        userEvmAddress,
-        amountInWei
-      );
-      if (!hasBalance) {
+      // Check contract balance for fees (using user's wallet like reference implementation)
+      const hasContractBalance =
+        await contractSetup.checkContractBalanceForFee();
+      if (!hasContractBalance) {
         toast({
-          title: "Insufficient USDC Balance",
-          description:
-            "You need USDC tokens on Neon EVM to pay flash loan fees. Use the airdrop button to get test USDC.",
-          variant: "destructive",
+          title: "Setting up contract...",
+          description: "Ensuring contract has USDC for flash loan fees",
         });
-        return;
+
+        // Ensure contract has USDC for fees using user's wallet
+        const setupSuccess = await contractSetup.ensureContractBalance();
+        if (!setupSuccess) {
+          toast({
+            title: "Contract Setup Failed",
+            description:
+              "Unable to ensure contract has USDC for fees. Please get USDC for your wallet.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
-
-      // Ensure contract balance
-      toast({
-        title: "Setting up contract...",
-        description: "Ensuring contract has sufficient USDC balance for fees",
-      });
-
-      await contractSetup.ensureContractBalance();
 
       // Execute flash loan
       console.log("Executing flash loan...");
@@ -787,26 +792,12 @@ export default function FlashLoan() {
         description: `Executing ${strategy.name} with ${amount} USDC`,
       });
 
-      let result;
-      if (
-        strategy.protocol === "orca" &&
-        typeof window !== "undefined" &&
-        window.solana
-      ) {
-        console.log("Using Orca strategy with Phantom wallet provider");
-        result = await flashLoanServiceRef.current.executeFlashLoan(
-          selectedStrategy,
-          amountInWei,
-          0.5,
-          window.solana
-        );
-      } else {
-        result = await flashLoanServiceRef.current.executeFlashLoan(
-          selectedStrategy,
-          amountInWei,
-          0.5
-        );
-      }
+      // Execute flash loan with simplified approach (no Solana provider dependency)
+      const result = await flashLoanServiceRef.current.executeFlashLoan(
+        selectedStrategy,
+        amountInWei,
+        0.5
+      );
 
       // Handle results
       setFlashLoanResult({

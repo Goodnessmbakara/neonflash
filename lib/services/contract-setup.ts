@@ -21,44 +21,71 @@ export class ContractSetupService {
   }
 
   /**
-   * Ensure the flash loan contract has sufficient USDC for fees
-   * This is required before executing flash loans
+   * Check if contract has sufficient USDC balance for flash loan fees
+   * Updated to match reference implementation - checks contract, not user
    */
-  async ensureContractBalance(minBalance: bigint = ethers.parseUnits('1000000', 6)): Promise<boolean> {
+  async checkContractBalanceForFee(): Promise<boolean> {
     try {
-      console.log('=== CONTRACT BALANCE SETUP START ===');
+      console.log('=== CONTRACT FEE BALANCE CHECK START ===');
       const contractAddress = await this.flashLoanContract.getAddress();
-      console.log(`[CONTRACT] Flash Loan Contract Address: ${contractAddress}`);
-      console.log(`[CONTRACT] USDC Contract Address: ${await this.usdcContract.getAddress()}`);
-      console.log(`[CONTRACT] Minimum Required Balance: ${ethers.formatUnits(minBalance, 6)} USDC`);
+      console.log(`[FEE] Contract EVM Address: ${contractAddress}`);
+      
+      const contractBalance = await this.usdcContract.balanceOf(contractAddress);
+      console.log(`[FEE] Contract USDC Balance: ${ethers.formatUnits(contractBalance, 6)} USDC`);
+      
+      // Contract needs at least 1 USDC for fees (matching reference implementation)
+      const minContractBalance = ethers.parseUnits('1', 6); // 1 USDC minimum
+      console.log(`[FEE] Minimum contract balance needed: ${ethers.formatUnits(minContractBalance, 6)} USDC`);
+      
+      const hasSufficientBalance = contractBalance >= minContractBalance;
+      console.log(`[FEE] Contract has sufficient balance: ${hasSufficientBalance}`);
+      console.log(`[FEE] Balance comparison: ${ethers.formatUnits(contractBalance, 6)} >= ${ethers.formatUnits(minContractBalance, 6)}`);
+      
+      console.log('=== CONTRACT FEE BALANCE CHECK COMPLETE ===');
+      return hasSufficientBalance;
+    } catch (error) {
+      console.error('=== CONTRACT FEE BALANCE CHECK FAILED ===');
+      console.error('Error details:', error);
+      // If we can't check the balance, assume insufficient
+      return false;
+    }
+  }
+
+  /**
+   * Ensure contract has sufficient USDC balance for fees
+   * Updated to match reference implementation
+   */
+  async ensureContractBalance(minBalance: bigint = ethers.parseUnits('1', 6)): Promise<boolean> {
+    try {
+      console.log('=== ENSURE CONTRACT BALANCE START ===');
+      const contractAddress = await this.flashLoanContract.getAddress();
+      console.log(`[CONTRACT] Contract Address: ${contractAddress}`);
       
       const currentBalance = await this.usdcContract.balanceOf(contractAddress);
-      console.log(`[CONTRACT] Current Contract USDC Balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
+      console.log(`[CONTRACT] Current balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
+      console.log(`[CONTRACT] Required minimum: ${ethers.formatUnits(minBalance, 6)} USDC`);
       
       if (currentBalance < minBalance) {
-        const transferAmount = minBalance - currentBalance;
-        console.log(`[CONTRACT] Contract balance insufficient. Transferring ${ethers.formatUnits(transferAmount, 6)} USDC...`);
+        console.log(`[CONTRACT] Insufficient balance. Transferring ${ethers.formatUnits(minBalance, 6)} USDC to contract...`);
         
-        // Transfer USDC to contract
-        const tx = await this.usdcContract.transfer(contractAddress, transferAmount);
-        console.log(`[CONTRACT] Transfer transaction hash: ${tx.hash}`);
-        console.log(`[CONTRACT] Waiting for transaction confirmation...`);
-        
-        await tx.wait();
+        // Transfer USDC to contract (matching reference implementation)
+        const transferTx = await this.usdcContract.transfer(contractAddress, minBalance);
+        console.log(`[CONTRACT] Transfer transaction sent: ${transferTx.hash}`);
+        await transferTx.wait();
         
         const newBalance = await this.usdcContract.balanceOf(contractAddress);
-        console.log(`[CONTRACT] New contract balance: ${ethers.formatUnits(newBalance, 6)} USDC`);
-        console.log('=== CONTRACT BALANCE SETUP COMPLETE ===');
+        console.log(`[CONTRACT] New balance: ${ethers.formatUnits(newBalance, 6)} USDC`);
+        console.log('=== ENSURE CONTRACT BALANCE COMPLETE ===');
+        return true;
+      } else {
+        console.log(`[CONTRACT] Contract already has sufficient balance`);
+        console.log('=== ENSURE CONTRACT BALANCE COMPLETE ===');
         return true;
       }
-      
-      console.log(`[CONTRACT] Contract has sufficient USDC balance: ${ethers.formatUnits(currentBalance, 6)} USDC`);
-      console.log('=== CONTRACT BALANCE SETUP COMPLETE ===');
-      return true;
     } catch (error) {
-      console.error('=== CONTRACT BALANCE SETUP FAILED ===');
+      console.error('=== ENSURE CONTRACT BALANCE FAILED ===');
       console.error('Error details:', error);
-      throw error;
+      return false;
     }
   }
 
@@ -154,38 +181,6 @@ export class ContractSetupService {
       }
       
       throw error;
-    }
-  }
-
-  /**
-   * Check if user has sufficient balance for flash loan fee
-   */
-  async checkUserBalanceForFee(userAddress: string, flashLoanAmount: bigint): Promise<boolean> {
-    try {
-      console.log('=== USER FEE BALANCE CHECK START ===');
-      console.log(`[FEE] User EVM Address: ${userAddress}`);
-      console.log(`[FEE] Flash Loan Amount: ${ethers.formatUnits(flashLoanAmount, 6)} USDC`);
-      
-    const userBalance = await this.getUserBalance(userAddress);
-      console.log(`[FEE] User USDC Balance: ${ethers.formatUnits(userBalance, 6)} USDC`);
-      
-    const feeAmount = (flashLoanAmount * BigInt(5)) / BigInt(10000); // 0.05% fee
-    const requiredBalance = feeAmount + BigInt(1000000); // Fee + 1 USDC buffer
-    
-      console.log(`[FEE] Flash Loan Fee (0.05%): ${ethers.formatUnits(feeAmount, 6)} USDC`);
-      console.log(`[FEE] Required Balance (Fee + 1 USDC buffer): ${ethers.formatUnits(requiredBalance, 6)} USDC`);
-      
-      const hasSufficientBalance = userBalance >= requiredBalance;
-      console.log(`[FEE] Has sufficient balance: ${hasSufficientBalance}`);
-      console.log(`[FEE] Balance comparison: ${ethers.formatUnits(userBalance, 6)} >= ${ethers.formatUnits(requiredBalance, 6)}`);
-      
-      console.log('=== USER FEE BALANCE CHECK COMPLETE ===');
-      return hasSufficientBalance;
-    } catch (error) {
-      console.error('=== USER FEE BALANCE CHECK FAILED ===');
-      console.error('Error details:', error);
-      // If we can't check the balance, assume insufficient
-      return false;
     }
   }
 
