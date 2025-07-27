@@ -27,6 +27,19 @@ export class OrcaInstructionBuilder {
     console.log('User Address:', params.userAddress);
     console.log('Solana Address:', params.solanaAddress);
 
+    // Build-time check
+    if (typeof window === 'undefined') {
+      throw new Error('Orca instruction building must be done client-side');
+    }
+
+    // Check for Solana private key (like reference implementation's ANCHOR_WALLET)
+    const solanaPrivateKey = process.env.NEXT_PUBLIC_SOLANA_PRIVATE_KEY;
+    if (!solanaPrivateKey) {
+      throw new Error('SOLANA_PRIVATE_KEY environment variable is required for Orca instruction building. Please add your Solana private key to .env.local');
+    }
+
+    console.log('Using Solana private key from environment (like reference implementation)');
+
     // Dynamic imports to avoid SSR issues
     const web3 = (await import('@solana/web3.js')).default;
     const { getAssociatedTokenAddress } = await import('@solana/spl-token');
@@ -44,48 +57,47 @@ export class OrcaInstructionBuilder {
     const { DecimalUtil, Percentage } = await import('@orca-so/common-sdk');
     const { Decimal } = await import('decimal.js');
 
-    // Build-time check
-    if (typeof window === 'undefined') {
-      throw new Error('Orca instruction building must be done client-side');
-    }
-
-    // Create connection and provider exactly like reference implementation
+    // Create connection exactly like reference implementation
     const connection = new web3.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
     
-    // Use real Solana address for instruction building (matching reference implementation)
+    // Create real wallet from private key (like reference implementation)
     let wallet;
-    if (params.solanaAddress) {
-      console.log('Using real Solana address for instruction building:', params.solanaAddress);
-      const realPublicKey = new web3.PublicKey(params.solanaAddress);
+    try {
+      // Parse private key (support both base58 and hex formats)
+      let privateKeyBytes: Uint8Array;
+      if (solanaPrivateKey.startsWith('[') || solanaPrivateKey.includes(',')) {
+        // Array format: [1,2,3,...]
+        privateKeyBytes = new Uint8Array(JSON.parse(solanaPrivateKey));
+      } else if (solanaPrivateKey.length === 88) {
+        // Base58 format - use Buffer directly
+        privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey, 'base64'));
+      } else if (solanaPrivateKey.startsWith('0x')) {
+        // Hex format
+        privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey.slice(2), 'hex'));
+      } else {
+        // Assume hex without 0x
+        privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey, 'hex'));
+      }
+
+      const keypair = web3.Keypair.fromSecretKey(privateKeyBytes);
+      console.log('Created real Solana keypair from private key:', keypair.publicKey.toBase58());
+
       wallet = {
-        publicKey: realPublicKey,
+        publicKey: keypair.publicKey,
         signTransaction: async (tx: any) => {
           // For instruction building only - actual signing happens in Neon EVM contract
-          console.log('Instruction building: Using real public key for transaction structure');
+          console.log('Instruction building: Using real keypair for transaction structure');
           return tx;
         },
         signAllTransactions: async (txs: any[]) => {
           // For instruction building only - actual signing happens in Neon EVM contract
-          console.log('Instruction building: Using real public key for transaction structure');
+          console.log('Instruction building: Using real keypair for transaction structure');
           return txs;
         }
       };
-    } else {
-      console.log('Using dummy keypair for instruction building (fallback)');
-      const dummyKeypair = web3.Keypair.generate();
-      wallet = {
-        publicKey: dummyKeypair.publicKey,
-        signTransaction: async (tx: any) => {
-          // This is only for instruction building, not actual signing
-          tx.sign(dummyKeypair);
-          return tx;
-        },
-        signAllTransactions: async (txs: any[]) => {
-          // This is only for instruction building, not actual signing
-          txs.forEach(tx => tx.sign(dummyKeypair));
-          return txs;
-        }
-      };
+    } catch (error) {
+      console.error('Failed to create Solana keypair from private key:', error);
+      throw new Error(`Invalid Solana private key format. Please check your NEXT_PUBLIC_SOLANA_PRIVATE_KEY environment variable. Error: ${error}`);
     }
 
     // Create provider exactly like reference implementation
@@ -114,9 +126,9 @@ export class OrcaInstructionBuilder {
     console.log('Tick spacing:', tickSpacing);
 
     // Get whirlpool exactly like reference implementation (no fallback)
-    console.log('Attempting to fetch whirlpool from Solana...');
+    console.log('Attempting to fetch whirlpool from Solana with real wallet...');
     const whirlpool = await client.getPool(whirlpool_pubkey);
-    console.log('Whirlpool fetched successfully');
+    console.log('Whirlpool fetched successfully with real wallet');
 
     // Get associated token addresses exactly like reference implementation
     const ataContractTokenA = await getAssociatedTokenAddress(
@@ -200,7 +212,7 @@ export class OrcaInstructionBuilder {
       )
     );
 
-    console.log('Orca swap instructions built successfully (matching reference implementation)');
+    console.log('Orca swap instructions built successfully with real Solana wallet (matching reference implementation)');
     return swaps;
   }
 
