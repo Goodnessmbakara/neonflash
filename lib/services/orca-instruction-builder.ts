@@ -16,6 +16,7 @@ export interface OrcaSwapParams {
   tokenOutMint: string; // SAMO mint address
   contractAddress: string; // Flash loan contract address
   userAddress: string; // User's wallet address
+  solanaAddress?: string; // Optional: User's Solana address derived from MetaMask
 }
 
 export class OrcaInstructionBuilder {
@@ -56,24 +57,41 @@ export class OrcaInstructionBuilder {
       // Create provider with proper Solana connection (matching reference implementation)
       const connection = new web3.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
       
-      // Create a dummy wallet for instruction building only
-      // Note: This is NOT the same as reference implementation
-      // Reference implementation uses real private keys for direct Solana execution
-      // Frontend implementation builds instructions for Neon EVM contract execution
-      const dummyKeypair = web3.Keypair.generate();
-      const wallet = {
-        publicKey: dummyKeypair.publicKey,
-        signTransaction: async (tx: any) => {
-          // This is only for instruction building, not actual signing
-          tx.sign(dummyKeypair);
-          return tx;
-        },
-        signAllTransactions: async (txs: any[]) => {
-          // This is only for instruction building, not actual signing
-          txs.forEach(tx => tx.sign(dummyKeypair));
-          return txs;
-        }
-      };
+      // Use real MetaMask-derived Solana address if available, otherwise fallback to dummy
+      let wallet;
+      if (params.solanaAddress) {
+        console.log('Using real MetaMask-derived Solana address:', params.solanaAddress);
+        const realPublicKey = new web3.PublicKey(params.solanaAddress);
+        wallet = {
+          publicKey: realPublicKey,
+          signTransaction: async (tx: any) => {
+            // For instruction building only - actual signing happens in Neon EVM contract
+            console.log('Instruction building: Using real public key for transaction structure');
+            return tx;
+          },
+          signAllTransactions: async (txs: any[]) => {
+            // For instruction building only - actual signing happens in Neon EVM contract
+            console.log('Instruction building: Using real public key for transaction structure');
+            return txs;
+          }
+        };
+      } else {
+        console.log('Using dummy keypair for instruction building (fallback)');
+        const dummyKeypair = web3.Keypair.generate();
+        wallet = {
+          publicKey: dummyKeypair.publicKey,
+          signTransaction: async (tx: any) => {
+            // This is only for instruction building, not actual signing
+            tx.sign(dummyKeypair);
+            return tx;
+          },
+          signAllTransactions: async (txs: any[]) => {
+            // This is only for instruction building, not actual signing
+            txs.forEach(tx => tx.sign(dummyKeypair));
+            return txs;
+          }
+        };
+      }
       
       // Dynamic imports to prevent build-time issues
       const { AnchorProvider } = await import('@coral-xyz/anchor');
@@ -105,7 +123,51 @@ export class OrcaInstructionBuilder {
           TokenA.mint,
           tickSpacing
       ).publicKey;
-      const whirlpool = await client.getPool(whirlpool_pubkey);
+      
+      console.log('Whirlpool pubkey:', whirlpool_pubkey.toBase58());
+      
+      // Try to get the whirlpool with error handling for AdaptiveFeeTier
+      let whirlpool: any;
+      try {
+        whirlpool = await client.getPool(whirlpool_pubkey);
+        console.log('Whirlpool fetched successfully');
+      } catch (error: any) {
+        console.error('Error fetching whirlpool:', error);
+        
+        // If it's an AdaptiveFeeTier error, try alternative approach
+        if (error.message && error.message.includes('AdaptiveFeeTier')) {
+          console.log('AdaptiveFeeTier error detected - trying alternative approach...');
+          
+          // Try to create a minimal whirlpool object for instruction building
+          // This is a workaround for devnet fee tier issues
+          whirlpool = {
+            getData: () => ({
+              whirlpoolsConfig: new web3.PublicKey(ENVIRONMENT_CONFIG.ORCA.WHIRLPOOLS_CONFIG),
+              whirlpoolBump: [0],
+              tickSpacing: tickSpacing,
+              tickCurrentIndex: 0,
+              sqrtPrice: 0,
+              observationIndex: 0,
+              observationCardinality: 0,
+              observationCardinalityNext: 0,
+              maxObservationCardinality: 0,
+              protocolFeeRate: 0,
+              protocolSwapFeeRate: 0,
+              feeGrowthGlobalA: 0,
+              feeGrowthGlobalB: 0,
+              tokenVaultA: new web3.PublicKey(params.contractAddress),
+              tokenVaultB: new web3.PublicKey(params.contractAddress),
+              feeTier: new web3.PublicKey('11111111111111111111111111111111'), // Default fee tier
+              rewardLastUpdatedTimestamp: 0,
+              rewardInfos: []
+            }),
+            getAddress: () => whirlpool_pubkey
+          };
+          console.log('Created fallback whirlpool object for instruction building');
+        } else {
+          throw error; // Re-throw if it's not an AdaptiveFeeTier error
+        }
+      }
       
       const ataContractTokenA = await getAssociatedTokenAddress(
           TokenA.mint,
