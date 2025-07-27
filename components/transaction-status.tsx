@@ -101,23 +101,30 @@ export function TransactionStatusItem({
         </Badge>
 
         {status.hash && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={copyHash}
-              className="h-6 w-6 p-0"
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={openExplorer}
-              className="h-6 w-6 p-0"
-            >
-              <ExternalLink className="h-3 w-3" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-mono text-muted-foreground max-w-24 truncate">
+              {status.hash.slice(0, 8)}...
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyHash}
+                className="h-6 w-6 p-0"
+                title="Copy transaction hash"
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openExplorer}
+                className="h-6 w-6 p-0"
+                title="View on explorer"
+              >
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -202,36 +209,41 @@ export function FlashLoanTransactionStatus({
 
         {mainTransactionHash && (
           <div className="pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Main Transaction</p>
-                <p className="text-sm text-muted-foreground">
-                  {mainTransactionHash.slice(0, 10)}...
-                  {mainTransactionHash.slice(-8)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyMainHash}
-                  className="h-8 w-8 p-0"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    window.open(
-                      `https://neonscan.org/tx/${mainTransactionHash}`,
-                      "_blank"
-                    )
-                  }
-                  className="h-8 w-8 p-0"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium text-blue-900 mb-1">
+                    Transaction Hash
+                  </p>
+                  <p className="text-sm font-mono text-blue-700 break-all">
+                    {mainTransactionHash}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyMainHash}
+                    className="h-8 px-3 text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      window.open(
+                        `https://neonscan.org/tx/${mainTransactionHash}`,
+                        "_blank"
+                      )
+                    }
+                    className="h-8 px-3 text-blue-700 border-blue-300 hover:bg-blue-100"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

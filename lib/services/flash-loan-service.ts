@@ -246,34 +246,59 @@ export class FlashLoanService {
       console.log(`[STEP 5] Transaction sent! Hash: ${tx.hash}`);
       console.log(`[STEP 5] Waiting for transaction confirmation...`);
       
-      const receipt = await tx.wait();
-      console.log(`[STEP 5] Transaction confirmed! Block: ${receipt.blockNumber}`);
-      console.log(`[STEP 5] Gas used: ${receipt.gasUsed.toString()}`);
-      console.log(`[STEP 5] Effective gas price: ${ethers.formatUnits(receipt.gasPrice || 0, 'gwei')} gwei`);
+      // Capture transaction hash immediately after sending
+      const transactionHash = tx.hash;
       
-      console.log(`[STEP 6] Retrieving flash loan results...`);
-      const lastLoan = await this.flashLoanContract.lastLoan();
-      const lastLoanFee = await this.flashLoanContract.lastLoanFee();
-      
-      console.log(`[STEP 6] Last loan amount: ${ethers.formatUnits(lastLoan, 6)} USDC`);
-      console.log(`[STEP 6] Last loan fee: ${ethers.formatUnits(lastLoanFee, 6)} USDC`);
-      
-      const profit = lastLoan - amount - lastLoanFee;
-      console.log(`[STEP 6] Calculated profit: ${ethers.formatUnits(profit, 6)} USDC`);
-      
-      console.log('=== FLASH LOAN EXECUTION COMPLETE ===');
-      
-      return {
-        success: true,
-        transactionHash: receipt.hash,
-        profit: profit,
-        fee: lastLoanFee,
-      };
+      try {
+        const receipt = await tx.wait();
+        console.log(`[STEP 5] Transaction confirmed! Block: ${receipt.blockNumber}`);
+        console.log(`[STEP 5] Gas used: ${receipt.gasUsed.toString()}`);
+        console.log(`[STEP 5] Effective gas price: ${ethers.formatUnits(receipt.gasPrice || 0, 'gwei')} gwei`);
+        
+        console.log(`[STEP 6] Retrieving flash loan results...`);
+        const lastLoan = await this.flashLoanContract.lastLoan();
+        const lastLoanFee = await this.flashLoanContract.lastLoanFee();
+        
+        console.log(`[STEP 6] Last loan amount: ${ethers.formatUnits(lastLoan, 6)} USDC`);
+        console.log(`[STEP 6] Last loan fee: ${ethers.formatUnits(lastLoanFee, 6)} USDC`);
+        
+        const profit = lastLoan - amount - lastLoanFee;
+        console.log(`[STEP 6] Calculated profit: ${ethers.formatUnits(profit, 6)} USDC`);
+        
+        console.log('=== FLASH LOAN EXECUTION COMPLETE ===');
+        
+        return {
+          success: true,
+          transactionHash: transactionHash,
+          profit: profit,
+          fee: lastLoanFee,
+        };
+      } catch (receiptError) {
+        console.error(`[STEP 5] Transaction failed after sending:`, receiptError);
+        // Return failure but include the transaction hash
+        return {
+          success: false,
+          transactionHash: transactionHash,
+          error: receiptError instanceof Error ? receiptError.message : 'Transaction failed after sending',
+        };
+      }
     } catch (error) {
       console.error('=== FLASH LOAN EXECUTION FAILED ===');
       console.error('Error details:', error);
+      
+      // Check if this is a transaction error that might have a hash
+      let transactionHash: string | undefined;
+      if (error && typeof error === 'object' && 'transaction' in error) {
+        const txError = error as any;
+        if (txError.transaction && txError.transaction.hash) {
+          transactionHash = txError.transaction.hash;
+          console.log(`[ERROR] Transaction hash from error: ${transactionHash}`);
+        }
+      }
+      
       return {
         success: false,
+        transactionHash: transactionHash,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }

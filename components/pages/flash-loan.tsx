@@ -860,6 +860,15 @@ export default function FlashLoan() {
         error instanceof Error ? error.message : "Unknown error";
       console.error("Flash loan execution failed:", error);
 
+      // Try to extract transaction hash from error if available
+      let transactionHash: string | undefined;
+      if (error && typeof error === "object" && "transaction" in error) {
+        const txError = error as any;
+        if (txError.transaction && txError.transaction.hash) {
+          transactionHash = txError.transaction.hash;
+        }
+      }
+
       toast({
         title: "Execution Failed",
         description: errorMessage,
@@ -869,20 +878,24 @@ export default function FlashLoan() {
       setFlashLoanResult({
         success: false,
         error: errorMessage,
+        transactionHash: transactionHash,
         steps: {
           borrow: {
             status: "failed",
             error: errorMessage,
+            hash: transactionHash,
             timestamp: Date.now(),
           },
           arbitrage: {
             status: "failed",
             error: errorMessage,
+            hash: transactionHash,
             timestamp: Date.now(),
           },
           repay: {
             status: "failed",
             error: errorMessage,
+            hash: transactionHash,
             timestamp: Date.now(),
           },
         },
