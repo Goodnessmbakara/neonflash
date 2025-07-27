@@ -40,25 +40,16 @@ export class OrcaInstructionBuilder {
 
     console.log('Using Solana private key from environment (like reference implementation)');
 
-    // Dynamic imports to avoid SSR issues
-    const web3 = (await import('@solana/web3.js')).default;
-    const { getAssociatedTokenAddress } = await import('@solana/spl-token');
-    const { AnchorProvider } = await import('@coral-xyz/anchor');
-    const { 
-      WhirlpoolContext, 
-      buildWhirlpoolClient, 
-      ORCA_WHIRLPOOL_PROGRAM_ID, 
-      PDAUtil, 
-      swapQuoteByInputToken, 
-      IGNORE_CACHE, 
-      WhirlpoolIx, 
-      SwapUtils 
-    } = await import('@orca-so/whirlpools-sdk');
-    const { DecimalUtil, Percentage } = await import('@orca-so/common-sdk');
-    const { Decimal } = await import('decimal.js');
+    // Import Solana SDKs (these are now properly configured in next.config.mjs)
+    const web3 = await import('@solana/web3.js');
+    const splToken = await import('@solana/spl-token');
+    const anchor = await import('@coral-xyz/anchor');
+    const whirlpools = await import('@orca-so/whirlpools-sdk');
+    const commonSdk = await import('@orca-so/common-sdk');
+    const decimal = await import('decimal.js');
 
     // Create connection exactly like reference implementation
-    const connection = new web3.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
+    const connection = new web3.default.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
     
     // Create real wallet from private key (like reference implementation)
     let wallet;
@@ -101,19 +92,19 @@ export class OrcaInstructionBuilder {
     }
 
     // Create provider exactly like reference implementation
-    const provider = new AnchorProvider(connection, wallet, {});
-    const ctx = WhirlpoolContext.withProvider(provider, ORCA_WHIRLPOOL_PROGRAM_ID);
-    const client = buildWhirlpoolClient(ctx);
+    const provider = new anchor.AnchorProvider(connection, wallet, {});
+    const ctx = whirlpools.WhirlpoolContext.withProvider(provider, whirlpools.ORCA_WHIRLPOOL_PROGRAM_ID);
+    const client = whirlpools.buildWhirlpoolClient(ctx);
 
     // Token configuration exactly like reference implementation
-    const TokenA = { mint: new web3.PublicKey(params.tokenInMint), decimals: 6 }; // devUSDC
-    const TokenB = { mint: new web3.PublicKey(params.tokenOutMint), decimals: 9 }; // devSAMO
+    const TokenA = { mint: new web3.default.PublicKey(params.tokenInMint), decimals: 6 }; // devUSDC
+    const TokenB = { mint: new web3.default.PublicKey(params.tokenOutMint), decimals: 9 }; // devSAMO
     const tickSpacing = 64;
 
     // Get whirlpool pubkey exactly like reference implementation
-    const whirlpool_pubkey = PDAUtil.getWhirlpool(
-      ORCA_WHIRLPOOL_PROGRAM_ID,
-      new web3.PublicKey(ENVIRONMENT_CONFIG.ORCA.WHIRLPOOLS_CONFIG),
+    const whirlpool_pubkey = whirlpools.PDAUtil.getWhirlpool(
+      whirlpools.ORCA_WHIRLPOOL_PROGRAM_ID,
+      new web3.default.PublicKey(ENVIRONMENT_CONFIG.ORCA.WHIRLPOOLS_CONFIG),
       TokenB.mint,
       TokenA.mint,
       tickSpacing
@@ -131,15 +122,15 @@ export class OrcaInstructionBuilder {
     console.log('Whirlpool fetched successfully with real wallet');
 
     // Get associated token addresses exactly like reference implementation
-    const ataContractTokenA = await getAssociatedTokenAddress(
+    const ataContractTokenA = await splToken.getAssociatedTokenAddress(
       TokenA.mint,
-      new web3.PublicKey(params.contractAddress),
+      new web3.default.PublicKey(params.contractAddress),
       true
     );
 
-    const ataContractTokenB = await getAssociatedTokenAddress(
+    const ataContractTokenB = await splToken.getAssociatedTokenAddress(
       TokenB.mint,
-      new web3.PublicKey(params.contractAddress),
+      new web3.default.PublicKey(params.contractAddress),
       true
     );
 
@@ -148,67 +139,67 @@ export class OrcaInstructionBuilder {
       'ContractData',
       params.tokenInMint,
       params.contractAddress,
-      new web3.PublicKey(this.neonEvmProgramId)
+      new web3.default.PublicKey(this.neonEvmProgramId)
     ))[0];
     console.log('Contract PDA devUSDC:', contractPDAdevUSDC.toBase58());
 
     // Convert amount to Decimal exactly like reference implementation
-    const amountIn = new Decimal(params.amountIn);
+    const amountIn = new decimal.Decimal(params.amountIn);
 
     // First swap: USDC -> SAMO (exactly like reference implementation)
     console.log('Building first swap: USDC -> SAMO');
-    const quote1 = await swapQuoteByInputToken(
+    const quote1 = await whirlpools.swapQuoteByInputToken(
       whirlpool,
       TokenA.mint,
-      DecimalUtil.toBN(amountIn, TokenA.decimals),
-      Percentage.fromFraction(0, 1000), // 0 slippage
+      commonSdk.DecimalUtil.toBN(amountIn, TokenA.decimals),
+      commonSdk.Percentage.fromFraction(0, 1000), // 0 slippage
       ctx.program.programId,
       ctx.fetcher,
-      IGNORE_CACHE
+      whirlpools.IGNORE_CACHE
     );
 
-    console.log("First swap - estimatedAmountIn:", DecimalUtil.fromBN(quote1.estimatedAmountIn, TokenA.decimals).toString(), "TokenA");
-    console.log("First swap - estimatedAmountOut:", DecimalUtil.fromBN(quote1.estimatedAmountOut, TokenB.decimals).toString(), "TokenB");
-    console.log("First swap - otherAmountThreshold:", DecimalUtil.fromBN(quote1.otherAmountThreshold, TokenB.decimals).toString(), "TokenB");
+    console.log("First swap - estimatedAmountIn:", commonSdk.DecimalUtil.fromBN(quote1.estimatedAmountIn, TokenA.decimals).toString(), "TokenA");
+    console.log("First swap - estimatedAmountOut:", commonSdk.DecimalUtil.fromBN(quote1.estimatedAmountOut, TokenB.decimals).toString(), "TokenB");
+    console.log("First swap - otherAmountThreshold:", commonSdk.DecimalUtil.fromBN(quote1.otherAmountThreshold, TokenB.decimals).toString(), "TokenB");
 
     const swaps = [];
-    swaps[0] = WhirlpoolIx.swapIx(
+    swaps[0] = whirlpools.WhirlpoolIx.swapIx(
       ctx.program,
-      SwapUtils.getSwapParamsFromQuote(
+      whirlpools.SwapUtils.getSwapParamsFromQuote(
         quote1,
         ctx,
         whirlpool,
         ataContractTokenA,
         ataContractTokenB,
-        new web3.PublicKey(params.contractAddress)
+        new web3.default.PublicKey(params.contractAddress)
       )
     );
 
     // Second swap: SAMO -> USDC (exactly like reference implementation)
     console.log('Building second swap: SAMO -> USDC');
-    const quote2 = await swapQuoteByInputToken(
+    const quote2 = await whirlpools.swapQuoteByInputToken(
       whirlpool,
       TokenB.mint,
-      DecimalUtil.toBN(new Decimal(DecimalUtil.fromBN(quote1.estimatedAmountOut, TokenB.decimals).toString()), TokenB.decimals),
-      Percentage.fromFraction(5, 1000), // 5% slippage (5/1000 = 0.5%)
+      commonSdk.DecimalUtil.toBN(new decimal.Decimal(commonSdk.DecimalUtil.fromBN(quote1.estimatedAmountOut, TokenB.decimals).toString()), TokenB.decimals),
+      commonSdk.Percentage.fromFraction(5, 1000), // 5% slippage (5/1000 = 0.5%)
       ctx.program.programId,
       ctx.fetcher,
-      IGNORE_CACHE
+      whirlpools.IGNORE_CACHE
     );
 
-    console.log("Second swap - estimatedAmountIn:", DecimalUtil.fromBN(quote2.estimatedAmountIn, TokenB.decimals).toString(), "TokenB");
-    console.log("Second swap - estimatedAmountOut:", DecimalUtil.fromBN(quote2.estimatedAmountOut, TokenA.decimals).toString(), "TokenA");
-    console.log("Second swap - otherAmountThreshold:", DecimalUtil.fromBN(quote2.otherAmountThreshold, TokenA.decimals).toString(), "TokenA");
+    console.log("Second swap - estimatedAmountIn:", commonSdk.DecimalUtil.fromBN(quote2.estimatedAmountIn, TokenB.decimals).toString(), "TokenB");
+    console.log("Second swap - estimatedAmountOut:", commonSdk.DecimalUtil.fromBN(quote2.estimatedAmountOut, TokenA.decimals).toString(), "TokenA");
+    console.log("Second swap - otherAmountThreshold:", commonSdk.DecimalUtil.fromBN(quote2.otherAmountThreshold, TokenA.decimals).toString(), "TokenA");
 
-    swaps[1] = WhirlpoolIx.swapIx(
+    swaps[1] = whirlpools.WhirlpoolIx.swapIx(
       ctx.program,
-      SwapUtils.getSwapParamsFromQuote(
+      whirlpools.SwapUtils.getSwapParamsFromQuote(
         quote2,
         ctx,
         whirlpool,
         ataContractTokenB,
         contractPDAdevUSDC,
-        new web3.PublicKey(params.contractAddress)
+        new web3.default.PublicKey(params.contractAddress)
       )
     );
 
@@ -234,13 +225,13 @@ export class OrcaInstructionBuilder {
   ): Promise<[any, number]> {
     // This should match the reference implementation's calculatePdaAccount function
     // For now, return a placeholder
-    const web3 = (await import('@solana/web3.js')).default;
+    const web3 = await import('@solana/web3.js');
     const seeds = [
       Buffer.from(prefix),
       Buffer.from(tokenEvmAddress.slice(2), 'hex'), // Remove '0x' prefix
       Buffer.from(contractAddress.slice(2), 'hex'), // Remove '0x' prefix
     ];
     
-    return web3.PublicKey.findProgramAddressSync(seeds, neonEvmProgram);
+    return web3.default.PublicKey.findProgramAddressSync(seeds, neonEvmProgram);
   }
 } 
