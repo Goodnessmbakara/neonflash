@@ -5,6 +5,7 @@ A **breakthrough DeFi solution** that enables cross-chain flash loans between Et
 ## 🌟 **BREAKTHROUGH FEATURES**
 
 ### 🔗 **Frontend Integration with Neon EVM Precompiles**
+
 **This is a world-first achievement!** NeonFlash successfully integrates frontend applications with Neon EVM's revolutionary precompile system:
 
 - **Direct Solana Program Calls**: Frontend can now call Solana programs directly from React components through Neon EVM precompiles
@@ -13,15 +14,18 @@ A **breakthrough DeFi solution** that enables cross-chain flash loans between Et
 - **Cross-Chain Composability**: Ethereum contracts calling Solana programs in real-time
 
 ### 🎯 **Multiple Arbitrage Strategies**
+
 NeonFlash implements **three distinct arbitrage strategies** for maximum profit opportunities:
 
 1. **USDC → SAMO → USDC** (Orca Whirlpool)
+
    - Protocol: Orca Whirlpool DEX
    - Risk Level: Medium
    - Estimated Profit: 0.5%
    - Advanced liquidity pool arbitrage
 
 2. **USDC → SOL → USDC** (Raydium)
+
    - Protocol: Raydium DEX
    - Risk Level: Low
    - Estimated Profit: 0.3%
@@ -34,6 +38,7 @@ NeonFlash implements **three distinct arbitrage strategies** for maximum profit 
    - Aggregated DEX arbitrage
 
 ### 💰 **Comprehensive Airdrop System**
+
 Built-in token distribution system for seamless testing:
 
 - **NEON Token Airdrop**: Direct integration with Neon Faucet API
@@ -51,18 +56,21 @@ Built-in token distribution system for seamless testing:
 Neon EVM is a breakthrough technology that enables Ethereum dApps to run on Solana while maintaining full EVM compatibility. Here's how it works:
 
 ### Transaction Lifecycle
+
 1. **User Initiation**: User signs an Ethereum-like transaction directed to a Neon RPC endpoint
 2. **Neon Proxy Processing**: The Neon Proxy wraps the Ethereum transaction as a Solana transaction
 3. **EVM Execution**: The Neon EVM program on Solana unwraps and executes the transaction
 4. **State Update**: Solana's state is updated to reflect the new Neon EVM state
 
 ### Key Benefits
+
 - **EVM Compatibility**: Use existing Ethereum tools (Solidity, Hardhat, MetaMask, etc.)
 - **Solana Performance**: Benefit from Solana's speed and low fees
 - **Cross-Chain Composability**: Call Solana programs directly from Solidity contracts
 - **No Rust Required**: Build with familiar Ethereum development tools
 
 ### Composability Feature
+
 NeonFlash leverages Neon EVM's unique `ICallSolana` precompile (address: `0xFF00000000000000000000000000000000000006`) to enable Solidity contracts to call Solana programs directly, enabling true cross-chain DeFi operations.
 
 For more information, visit the [Neon EVM documentation](https://neonevm.org/docs/quick_start).
@@ -70,12 +78,14 @@ For more information, visit the [Neon EVM documentation](https://neonevm.org/doc
 ## 🏗️ How NeonFlash Works
 
 ### Product Architecture
+
 NeonFlash is a Next.js frontend application that connects to smart contracts deployed on Neon EVM. The platform enables users to execute cross-chain flash loans for arbitrage opportunities between Neon EVM and Solana.
 
 ### Core Workflow
-1. **Wallet Connection**: Users connect their Phantom wallet, which supports both Neon EVM and Solana
+
+1. **Wallet Connection**: Users connect their MetaMask wallet to Neon EVM
 2. **Strategy Selection**: Choose from available arbitrage strategies (currently Orca Whirlpool)
-3. **Flash Loan Execution**: 
+3. **Flash Loan Execution**:
    - Borrow USDC from Aave V3 on Neon EVM
    - Execute arbitrage trades on Solana using the borrowed funds
    - Repay the flash loan with interest
@@ -83,13 +93,16 @@ NeonFlash is a Next.js frontend application that connects to smart contracts dep
 4. **Real-time Monitoring**: Track transaction status and profit calculations
 
 ### Technical Implementation
+
 - **Frontend**: React 19 with TypeScript, Tailwind CSS, and Zustand for state management
-- **Wallet Integration**: Phantom wallet with EVM support for seamless cross-chain operations
+- **Wallet Integration**: MetaMask wallet for Neon EVM operations
 - **Smart Contracts**: Solidity contracts deployed on Neon EVM that interact with Solana programs
 - **Analytics**: Real-time metrics tracking and transaction history
 - **Airdrop System**: Built-in token distribution for testing purposes
+- **Environment Configuration**: Centralized configuration matching reference implementation
 
 ### Current Status
+
 - **Available**: Orca Whirlpool arbitrage strategy (USDC → SAMO → USDC)
 - **Coming Soon**: Raydium and Jupiter strategies
 - **Testing**: Fully functional on Neon EVM and Solana devnets
@@ -98,17 +111,30 @@ NeonFlash is a Next.js frontend application that connects to smart contracts dep
 
 **🎉 All Infrastructure Tests Passed!** (13/13 tests successful)
 
+### 🔄 **Reference Implementation Compatibility**
+
+NeonFlash is now **fully compatible** with the [reference implementation](https://github.com/Goodnessmbakara/neon-aave-loan):
+
+- ✅ **Environment Configuration**: Centralized config matching reference implementation exactly
+- ✅ **Contract Addresses**: Same addresses as reference implementation
+- ✅ **Token Mints**: Same token mints as reference implementation
+- ✅ **Orca Instructions**: Same instruction building process as reference implementation
+- ✅ **Flash Loan Parameters**: Same amounts, gas limits, and slippage tolerance
+- ✅ **Testing Scripts**: Terminal-based testing matching reference implementation
+
+**Key Difference**: Reference implementation uses Hardhat with real private keys for direct Solana execution, while NeonFlash uses MetaMask with dummy keypairs for frontend instruction building.
+
 The platform has been thoroughly tested and verified to be fully functional:
 
 - ✅ **Network Connectivity**: Both Neon EVM and Solana devnets operational
 - ✅ **Smart Contracts**: All contracts deployed and accessible
-- ✅ **Contract Methods**: All tested methods return expected values  
+- ✅ **Contract Methods**: All tested methods return expected values
 - ✅ **Token Infrastructure**: USDC and SAMO tokens properly configured
 - ✅ **API Endpoints**: All endpoints responding correctly
 - ✅ **Airdrop System**: NEON airdrop functional, USDC guidance provided
 - ✅ **Precompile Integration**: Frontend successfully calls Solana programs
 - ✅ **Multi-Strategy Support**: All three arbitrage strategies implemented
-- ✅ **Dual Wallet System**: MetaMask + Phantom integration working
+- ✅ **Wallet Integration**: MetaMask wallet integration working
 
 **📊 Detailed Test Results:** See [CURL_TEST_RESULTS.md](./CURL_TEST_RESULTS.md) for comprehensive test suite results and implementation verification.
 
@@ -121,12 +147,13 @@ The platform has been thoroughly tested and verified to be fully functional:
 - **Multiple Strategies**: Support for Orca Whirlpool, Raydium, and Jupiter arbitrage
 - **Real-time Analytics**: Track performance and profit calculations
 - **User-Friendly Interface**: Complex DeFi operations made simple
-- **Phantom Wallet Integration**: Seamless single-wallet experience for both Neon EVM and Solana
+- **MetaMask Wallet Integration**: Seamless wallet experience for Neon EVM operations
 - **Comprehensive Testing**: 13/13 infrastructure tests passed
 
 ## 🏗️ Architecture
 
 ### Smart Contracts (Neon EVM Bootcamp Development)
+
 The smart contracts were developed during the Neon EVM bootcamp and are managed in a separate repository for better organization and maintainability:
 
 - **AaveFlashLoan.sol**: Main contract that handles flash loan requests and Solana composability
@@ -136,10 +163,11 @@ The smart contracts were developed during the Neon EVM bootcamp and are managed 
 > **Note**: These contracts are educational prototypes developed during the Neon EVM bootcamp and have not undergone formal security audits. They are intended for learning and demonstration purposes only.
 
 ### Frontend (Next.js)
+
 - **React 19** with **TypeScript**
 - **Tailwind CSS** for styling
 - **Zustand** for state management
-- **Phantom Wallet Integration** for both Neon EVM and Solana operations
+- **MetaMask Wallet Integration** for Neon EVM operations
 
 ## 📁 Project Structure
 
@@ -173,6 +201,7 @@ neonflash/
 ## 🔧 Smart Contract Integration
 
 ### Contract Artifacts Management
+
 The frontend only contains the necessary contract artifacts (ABIs and addresses) for integration:
 
 ```bash
@@ -187,11 +216,13 @@ node scripts/update-contracts.js --update-addresses
 ```
 
 ### Neon EVM Composability
+
 The platform uses Neon EVM's unique composability feature that allows Solidity contracts to call Solana programs directly through the `ICallSolana` precompile at address `0xFF00000000000000000000000000000000000006`.
 
 ### Key Contracts
 
 #### AaveFlashLoan.sol
+
 ```solidity
 // Core flash loan function
 function flashLoanSimple(
@@ -203,12 +234,14 @@ function flashLoanSimple(
 ```
 
 #### IERC20ForSpl.sol
+
 ```solidity
 // Transfer tokens to Solana
 function transferSolana(bytes32 to, uint64 amount) external returns(bool);
 ```
 
 ### Contract Addresses (Devnet)
+
 - **AaveFlashLoan**: `0x90cF15326EE0Ecd1849685F28Ac70BEcA10248E0`
 - **Aave Pool**: `0x9eA85823b7B736189e663ddef0FEE250EF0d23E1`
 - **USDC**: `0x146c38c2E36D34Ed88d843E013677cCe72341794`
@@ -218,113 +251,142 @@ function transferSolana(bytes32 to, uint64 amount) external returns(bool);
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - pnpm (recommended) or npm
-- Phantom wallet (for both Neon EVM and Solana)
+- MetaMask wallet (for Neon EVM operations)
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd neonflash
    ```
 
 2. **Install dependencies**
+
    ```bash
    pnpm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    ```
-   
+
    Add your configuration:
+
    ```env
    NEXT_PUBLIC_NEON_RPC_URL=https://devnet.neonevm.org
    NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
    ```
 
-4. **Set up contract artifacts** (if you have access to the smart contract repository)
+4. **Validate environment setup**
+
+   ```bash
+   # Run environment validation script
+   pnpm setup
+   ```
+
+5. **Set up contract artifacts** (if you have access to the smart contract repository)
+
    ```bash
    # Copy contract ABIs
    node scripts/update-contracts.js --copy-all
-   
+
    # Update addresses if needed
    node scripts/update-contracts.js --update-addresses
    ```
 
-5. **Run the development server**
+6. **Run the development server**
+
    ```bash
    pnpm dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## 🔗 Wallet Connection
 
-### Phantom Wallet Support
-NeonFlash supports **Phantom wallet only** for both Neon EVM and Solana operations:
+### MetaMask Wallet Support
 
-1. **Install Phantom Wallet**: Download and install the [Phantom wallet extension](https://phantom.app/)
+NeonFlash supports **MetaMask wallet** for Neon EVM operations:
 
-2. **Connect to Neon EVM**: 
-   - Phantom automatically supports Neon EVM through its built-in EVM compatibility
-   - The platform will guide you to add Neon Devnet if not already configured
+1. **Install MetaMask**: Download and install the [MetaMask wallet extension](https://metamask.io/)
+
+2. **Connect to Neon EVM**:
+
+   - Add Neon Devnet to your MetaMask wallet
    - Network Name: Neon Devnet
    - RPC URL: https://devnet.neonevm.org
    - Chain ID: 245022926
    - Currency Symbol: NEON
 
-3. **Connect to Solana Devnet**:
-   - Switch to Solana Devnet in your Phantom wallet settings
-   - The platform will verify your connection to the correct network
-
-4. **Get Test Tokens**:
+3. **Get Test Tokens**:
    - NEON tokens: Use the built-in airdrop functionality or visit [Neon Faucet](https://neonfaucet.org/)
-   - SOL tokens: Use Solana Devnet faucet for testing
    - USDC tokens: Follow the guidance provided in the platform
 
 ## 💡 Usage
 
-### 1. Connect Phantom Wallet
-- Connect your Phantom wallet to the platform
-- The platform will automatically configure both Neon EVM and Solana connections
-- Ensure you have test tokens on both networks
+### 1. Connect MetaMask Wallet
+
+- Connect your MetaMask wallet to the platform
+- The platform will automatically configure Neon EVM connection
+- Ensure you have test tokens on Neon EVM
 
 ### 2. Select Strategy
+
 Choose from available arbitrage strategies:
+
 - **USDC → SAMO → USDC** (Orca Whirlpool) - Currently Available
 - **USDC → SOL → USDC** (Raydium) - Coming Soon
 - **USDC → JUP → USDC** (Jupiter) - Coming Soon
 
 ### 3. Configure Flash Loan
+
 - Enter the amount you want to borrow (100-10,000 USDC for Orca strategy)
 - Review fees and estimated profit
 - Set slippage tolerance (default: 0.5%)
 
 ### 4. Execute Transaction
-- Confirm the transaction in your Phantom wallet
+
+- Confirm the transaction in your MetaMask wallet
 - Monitor the transaction status through the platform
 - View results and profit/loss calculations
 
 ## 🧪 Testing
 
 ### Implementation Verification ✅
+
 The platform has been thoroughly tested and verified:
 
 - **Infrastructure Tests**: 13/13 tests passed (see [CURL_TEST_RESULTS.md](./CURL_TEST_RESULTS.md))
 - **Network Connectivity**: Both Neon EVM and Solana devnets verified operational
 - **Smart Contract Deployment**: All contracts deployed and accessible on devnet
 - **API Endpoints**: All endpoints tested and responding correctly
-- **Wallet Integration**: Phantom wallet connection for both Neon EVM and Solana fully functional
+- **Wallet Integration**: MetaMask wallet connection for Neon EVM fully functional
 - **Precompile Integration**: Frontend successfully calls Solana programs
 - **Multi-Strategy Testing**: All three arbitrage strategies implemented and tested
 
 ### Test Scripts
+
 ```bash
+# Run environment validation
+pnpm setup
+
+# Test flash loan functionality
+pnpm test:flash-loan
+
+# Test Orca instruction building
+pnpm test:orca
+
+# Debug flash loan calls
+pnpm debug:flash-loan
+
 # Run comprehensive CURL tests
 ./test-curl.sh
 
@@ -336,14 +398,17 @@ pnpm test
 ```
 
 ### Smart Contract Tests
+
 Smart contract tests are run in the separate smart contract repository:
+
 ```bash
 cd ../neonflash-contracts
 npx hardhat test test/AaveFlashLoan/AaveFlashLoan.js --network neondevnet
 ```
 
 ### Manual Testing
-1. **Connect Phantom Wallet**: Use the live prototype to connect your Phantom wallet
+
+1. **Connect MetaMask Wallet**: Use the live prototype to connect your MetaMask wallet
 2. **Get Test Tokens**: Use the built-in airdrop functionality for NEON tokens
 3. **Execute Flash Loan**: Test real cross-chain arbitrage transactions
 4. **Monitor Results**: Track transaction status and profit calculations
@@ -353,6 +418,7 @@ npx hardhat test test/AaveFlashLoan/AaveFlashLoan.js --network neondevnet
 The platform provides comprehensive analytics and real-time metrics tracking:
 
 ### 📈 **Analytics Dashboard**
+
 - **Total Transaction Volume**: Track cumulative flash loan volume
 - **Success Rate**: Monitor transaction success/failure rates
 - **Profit Analytics**: Real-time profit tracking and calculations
@@ -360,6 +426,7 @@ The platform provides comprehensive analytics and real-time metrics tracking:
 - **Risk Metrics**: Comprehensive risk assessment and monitoring
 
 ### 📊 **Real-time Metrics Service**
+
 - **Local Metrics Tracking**: Browser-based metric storage and retrieval
 - **Transaction History**: Complete history of flash loan attempts (successful and failed)
 - **Performance Aggregation**: Automated calculation of total profit, success rates, and trends
@@ -367,6 +434,7 @@ The platform provides comprehensive analytics and real-time metrics tracking:
 - **Cross-chain Analytics**: Unified analytics across Neon EVM and Solana networks
 
 ### 🔍 **Analytics Features**
+
 - **Multi-tab Interface**: Overview, Strategies, and Performance views
 - **Strategy Comparison**: Side-by-side comparison of Orca, Raydium, and Jupiter performance
 - **Historical Data**: Transaction history with timestamps and profit calculations
@@ -386,11 +454,13 @@ The platform provides comprehensive analytics and real-time metrics tracking:
 ## 🌐 Networks
 
 ### Devnet (Testing)
+
 - **Neon EVM**: https://devnet.neonevm.org
 - **Solana**: https://api.devnet.solana.com
 - **Explorer**: https://neon-devnet.blockscout.com
 
 ### Mainnet (Production)
+
 - **Neon EVM**: https://mainnet.neonevm.org
 - **Solana**: https://api.mainnet-beta.solana.com
 - **Explorer**: https://neon.blockscout.com
@@ -398,12 +468,14 @@ The platform provides comprehensive analytics and real-time metrics tracking:
 ## 🔄 Development Workflow
 
 ### Smart Contract Development
+
 1. Work on contracts in the separate repository
 2. Compile and test contracts
 3. Deploy to testnet/mainnet
 4. Update artifacts in frontend using the management script
 
 ### Frontend Development
+
 1. Update contract artifacts when contracts change
 2. Test integration with new contract versions
 3. Update UI to reflect new functionality
@@ -427,4 +499,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Aave team** for the flash loan protocol
 - **Solana team** for the blockchain infrastructure
 - **Borngreat Ikwutah** for his insights and contributions during the product development
-- All contributors and testers 
+- All contributors and testers
