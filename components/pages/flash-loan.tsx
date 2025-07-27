@@ -587,18 +587,6 @@ export default function FlashLoan() {
       }
 
       // Check if Phantom is connected for better Solana instruction building
-      if (
-        typeof window !== "undefined" &&
-        (!window.solana?.isPhantom || !window.solana?.isConnected)
-      ) {
-        toast({
-          title: "Phantom wallet recommended",
-          description:
-            "For optimal Solana instruction building, consider connecting Phantom wallet alongside MetaMask.",
-          variant: "default",
-        });
-        // Don't block execution, just warn
-      }
 
       // Check if wallet is ready for this operation
       if (!isWalletReady()) {
@@ -1405,21 +1393,7 @@ export default function FlashLoan() {
                   </div>
                 )}
 
-                {/* Phantom wallet recommendation */}
-                {isConnected &&
-                  typeof window !== "undefined" &&
-                  (!window.solana?.isPhantom ||
-                    !window.solana?.isConnected) && (
-                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-xs text-blue-700 dark:text-blue-300">
-                          For optimal Solana instruction building, connect
-                          Phantom wallet
-                        </span>
-                      </div>
-                    </div>
-                  )}
+
               </div>
             </div>
           </CardContent>
