@@ -20,19 +20,19 @@ interface Loan {
 }
 
 export default function Analytics() {
-  const { solanaAddress } = useWallet();
+  const { ethereumAddress } = useWallet();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(false);
   const [localMetrics, setLocalMetrics] = useState(getAggregatedMetrics());
 
   useEffect(() => {
-    if (solanaAddress) {
+    if (ethereumAddress) {
       setLoading(true);
-      fetchUserFlashLoans(solanaAddress)
+      fetchUserFlashLoans(ethereumAddress)
         .then((data) => setLoans(data))
         .finally(() => setLoading(false));
     }
-  }, [solanaAddress]);
+  }, [ethereumAddress]);
 
   useEffect(() => {
     setLocalMetrics(getAggregatedMetrics());

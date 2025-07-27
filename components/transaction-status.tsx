@@ -75,7 +75,7 @@ export function TransactionStatusItem({
     if (status.hash) {
       const url =
         chain === "neon"
-          ? `https://neonscan.org/tx/${status.hash}`
+          ? `https://devnet.neonscan.org/tx/${status.hash}`
           : `https://solscan.io/tx/${status.hash}`;
       window.open(url, "_blank");
     }
@@ -150,9 +150,12 @@ export function FlashLoanTransactionStatus({
   isExecuting,
 }: FlashLoanTransactionStatusProps) {
   const { toast } = useToast();
-  
+
   // Debug logging
-  console.log("FlashLoanTransactionStatus received mainTransactionHash:", mainTransactionHash);
+  console.log(
+    "FlashLoanTransactionStatus received mainTransactionHash:",
+    mainTransactionHash
+  );
   console.log("FlashLoanTransactionStatus received steps:", steps);
 
   const copyMainHash = async () => {
@@ -257,7 +260,7 @@ export function FlashLoanTransactionStatus({
                     size="sm"
                     onClick={() =>
                       window.open(
-                        `https://neonscan.org/tx/${mainTransactionHash}`,
+                        `https://devnet.neonscan.org/tx/${mainTransactionHash}`,
                         "_blank"
                       )
                     }

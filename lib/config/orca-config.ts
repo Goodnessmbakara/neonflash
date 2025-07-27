@@ -52,7 +52,10 @@ export const ORCA_CONFIG = {
         new Uint8Array([0x03]),
         new Uint8Array(Buffer.from(prefix, 'utf-8')),
         new Uint8Array(neonContractAddressBytes),
-        Buffer.from(Buffer.concat([Buffer.alloc(12), Buffer.from(this.isValidHex(salt) ? salt.substring(2) : salt, 'hex')]), 'hex')
+        Buffer.concat([
+          Buffer.alloc(12),
+          Buffer.from(this.isValidHex(salt) ? salt.substring(2) : salt, 'hex')
+        ])
       ];
     
       return web3.PublicKey.findProgramAddressSync(seed, neonEvmProgram);

@@ -238,8 +238,7 @@ export class FlashLoanService {
           throw new Error('Solana connection not available');
         }
         
-        const signature = new PublicKey(hash);
-        const status = await this.solanaConnection.getSignatureStatus(signature);
+        const status = await this.solanaConnection.getSignatureStatus(hash);
         
         return {
           status: status?.value?.confirmationStatus === 'confirmed' ? 'success' : 'pending',

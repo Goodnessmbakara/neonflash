@@ -1,25 +1,22 @@
 import { ethers } from 'ethers';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { deriveAddress } from '@solana/web3.js';
 
 export interface WalletState {
   isConnected: boolean;
-  walletType: 'metamask' | 'phantom' | 'dual' | null;
+  walletType: 'metamask' | null;
   ethereumAddress: string | null;
   solanaAddress: string | null;
   ethereumProvider: any | null;
   solanaProvider: any | null;
-  // New fields for dual wallet support
+  // MetaMask state
   metamaskConnected: boolean;
-  phantomConnected: boolean;
   metamaskAddress: string | null;
-  phantomAddress: string | null;
 }
 
 export interface WalletConnection {
   ethereumAddress: string;
   solanaAddress: string;
-  walletType: 'metamask' | 'phantom';
+  walletType: 'metamask';
 }
 
 class WalletManager {
@@ -31,9 +28,7 @@ class WalletManager {
     ethereumProvider: null,
     solanaProvider: null,
     metamaskConnected: false,
-    phantomConnected: false,
     metamaskAddress: null,
-    phantomAddress: null,
   };
 
   private listeners: ((state: WalletState) => void)[] = [];
@@ -95,15 +90,13 @@ class WalletManager {
 
       this.updateState({
         isConnected: true,
-        walletType: 'phantom',
+        walletType: 'metamask',
         ethereumAddress,
         solanaAddress,
         ethereumProvider: null,
         solanaProvider: window.solana,
         metamaskConnected: false,
-        phantomConnected: true,
         metamaskAddress: null,
-        phantomAddress: solanaAddress,
       });
 
       // Listen for account changes
@@ -113,7 +106,7 @@ class WalletManager {
       return {
         ethereumAddress,
         solanaAddress,
-        walletType: 'phantom',
+        walletType: 'metamask',
       };
     } catch (error) {
       console.error('Phantom connection error:', error);
@@ -144,21 +137,19 @@ class WalletManager {
       // Update state to reflect dual connection
       this.updateState({
         isConnected: true,
-        walletType: 'dual',
+        walletType: 'metamask',
         ethereumAddress: metamaskConnection.ethereumAddress,
         solanaAddress: phantomConnection.solanaAddress,
         ethereumProvider: this.state.ethereumProvider,
         solanaProvider: this.state.solanaProvider,
         metamaskConnected: true,
-        phantomConnected: true,
         metamaskAddress: metamaskConnection.ethereumAddress,
-        phantomAddress: phantomConnection.solanaAddress,
       });
 
       return {
         ethereumAddress: metamaskConnection.ethereumAddress,
         solanaAddress: phantomConnection.solanaAddress,
-        walletType: 'dual',
+        walletType: 'metamask',
       };
     } catch (error) {
       console.error('Dual wallet connection error:', error);
@@ -228,9 +219,7 @@ class WalletManager {
         ethereumProvider: provider,
         solanaProvider: null,
         metamaskConnected: true,
-        phantomConnected: false,
         metamaskAddress: ethereumAddress,
-        phantomAddress: null,
       });
 
       // Listen for account changes
@@ -308,15 +297,13 @@ class WalletManager {
 
         this.updateState({
           isConnected: true,
-          walletType: 'phantom',
+          walletType: 'metamask',
           ethereumAddress,
           solanaAddress,
           ethereumProvider: provider,
           solanaProvider: window.solana,
           metamaskConnected: false,
-          phantomConnected: true,
           metamaskAddress: null,
-          phantomAddress: solanaAddress,
         });
 
         // Listen for account changes
@@ -326,7 +313,7 @@ class WalletManager {
         return {
           ethereumAddress,
           solanaAddress,
-          walletType: 'phantom',
+          walletType: 'metamask',
         };
       } else {
         // Fallback to address derivation if EVM not supported
@@ -335,21 +322,19 @@ class WalletManager {
 
         this.updateState({
           isConnected: true,
-          walletType: 'phantom',
+          walletType: 'metamask',
           ethereumAddress,
           solanaAddress,
           ethereumProvider: null,
           solanaProvider: window.solana,
           metamaskConnected: false,
-          phantomConnected: true,
           metamaskAddress: null,
-          phantomAddress: solanaAddress,
         });
 
         return {
           ethereumAddress,
           solanaAddress,
-          walletType: 'phantom',
+          walletType: 'metamask',
         };
       }
     } catch (error) {
@@ -415,16 +400,6 @@ class WalletManager {
         ethereumAddress: newEthereumAddress,
         solanaAddress: newSolanaAddress,
       });
-    } else if (this.state.walletType === 'phantom') {
-      // Handle Phantom account change
-      const newSolanaAddress = window.solana.publicKey?.toString() || null;
-      if (newSolanaAddress) {
-        const newEthereumAddress = await this.deriveEthereumAddressFromSolana(newSolanaAddress);
-        this.updateState({
-          ethereumAddress: newEthereumAddress,
-          solanaAddress: newSolanaAddress,
-        });
-      }
     }
   }
 
@@ -448,15 +423,13 @@ class WalletManager {
       ethereumProvider: null,
       solanaProvider: null,
       metamaskConnected: false,
-      phantomConnected: false,
       metamaskAddress: null,
-      phantomAddress: null,
     });
   }
 
-  // Check if both wallets are connected for cross-chain operations
+  // Check if wallet is connected for cross-chain operations
   isDualConnected(): boolean {
-    return this.state.metamaskConnected && this.state.phantomConnected;
+    return this.state.metamaskConnected;
   }
 
   // Get the appropriate provider for a given chain

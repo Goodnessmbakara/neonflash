@@ -45,7 +45,7 @@ const nextConfig = {
   
   // Disable static optimization for pages that use Solana SDKs
   experimental: {
-    serverComponentsExternalPackages: [
+    serverExternalPackages: [
       '@solana/web3.js', 
       '@orca-so/whirlpools-sdk', 
       '@orca-so/common-sdk',

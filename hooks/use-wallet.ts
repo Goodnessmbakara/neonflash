@@ -129,7 +129,7 @@ export function useWallet(): UseWalletReturn {
   return {
     // State
     isConnected: state.isConnected,
-    walletType: state.walletType,
+    walletType: state.walletType === 'metamask' ? 'metamask' : null,
     ethereumAddress: state.ethereumAddress,
     isLoading,
     error,

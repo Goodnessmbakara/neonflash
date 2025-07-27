@@ -226,14 +226,14 @@ export class FlashLoanService {
         console.log(`[STEP 5] Instruction 2 length: ${instructionData2.length}`);
       } catch (error) {
         console.error(`[STEP 5] Function encoding failed:`, error);
-        throw new Error(`Function encoding failed: ${error.message}`);
+        throw new Error(`Function encoding failed: ${error instanceof Error ? error.message : String(error)}`);
       }
       
       // Ensure contract is connected to signer
       const contractWithSigner = this.flashLoanContract.connect(this.signer);
       console.log(`[STEP 5] Contract reconnected to signer: ${contractWithSigner.runner === this.signer}`);
       
-      const tx = await contractWithSigner.flashLoanSimple(
+      const tx = await (contractWithSigner as any).flashLoanSimple(
         strategy.tokenIn,
         amount,
         instructionData1, // Use real instructions exactly like reference implementation

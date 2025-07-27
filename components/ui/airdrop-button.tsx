@@ -6,8 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Gift } from "lucide-react";
 
 export function AirdropButton({ className = "" }: { className?: string }) {
-  const { isConnected, walletType, ethereumAddress, solanaAddress } =
-    useWallet();
+  const { isConnected, walletType, ethereumAddress } = useWallet();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -27,9 +26,6 @@ export function AirdropButton({ className = "" }: { className?: string }) {
       if (walletType === "metamask" && ethereumAddress) {
         address = ethereumAddress;
         chain = "neon";
-      } else if (walletType === "phantom" && solanaAddress) {
-        address = solanaAddress;
-        chain = "solana";
       } else {
         throw new Error("Unsupported wallet or missing address");
       }

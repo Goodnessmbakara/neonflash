@@ -45,12 +45,8 @@ export default function WalletStatus() {
     isConnected,
     walletType,
     ethereumAddress,
-    solanaAddress,
     metamaskConnected,
-    phantomConnected,
-    isDualConnected,
     metamaskAddress,
-    phantomAddress,
     disconnect,
     getShortAddress,
     getNetworkName,
@@ -99,28 +95,6 @@ export default function WalletStatus() {
         }
       }
 
-      // Fetch SOL balance if Phantom is connected
-      if (phantomConnected && solanaAddress) {
-        try {
-          const { Connection, PublicKey } = await import("@solana/web3.js");
-          const connection = new Connection(
-            "https://api.devnet.solana.com",
-            "confirmed"
-          );
-          const balance = await connection.getBalance(
-            new PublicKey(solanaAddress)
-          );
-          const solBalance = (balance / 1e9).toFixed(4);
-          newBalances.push({
-            token: "SOL",
-            amount: solBalance,
-            network: "solana",
-          });
-        } catch (error) {
-          console.error("Error fetching SOL balance:", error);
-        }
-      }
-
       // Fetch USDC balance on Neon if available
       if (metamaskConnected && ethereumAddress) {
         try {
@@ -160,7 +134,7 @@ export default function WalletStatus() {
   // Fetch balances on mount and when wallet changes
   useEffect(() => {
     fetchBalances();
-  }, [isConnected, ethereumAddress, solanaAddress]);
+  }, [isConnected, ethereumAddress]);
 
   // Copy address to clipboard
   const copyAddress = async (address: string, type: "Ethereum" | "Solana") => {
@@ -236,11 +210,9 @@ export default function WalletStatus() {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-green-500 rounded-full" />
           <span className="text-sm font-medium">
-            {isDualConnected
-              ? "Dual Wallet Connected"
-              : walletType === "metamask"
+            {walletType === "metamask"
               ? "MetaMask Connected"
-              : "Phantom Connected"}
+              : "MetaMask Connected"}
           </span>
         </div>
 
@@ -271,42 +243,6 @@ export default function WalletStatus() {
                   onClick={() =>
                     window.open(
                       `https://neon-devnet.blockscout.com/address/${ethereumAddress}`,
-                      "_blank"
-                    )
-                  }
-                  className="h-6 w-6 p-0"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {solanaAddress && (
-            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  SOL
-                </Badge>
-                <span className="text-sm font-mono">
-                  {getShortAddress(solanaAddress)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyAddress(solanaAddress, "Solana")}
-                  className="h-6 w-6 p-0"
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    window.open(
-                      `https://solscan.io/account/${solanaAddress}?cluster=devnet`,
                       "_blank"
                     )
                   }

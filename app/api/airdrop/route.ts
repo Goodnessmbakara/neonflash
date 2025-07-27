@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
           }
           
           // Create contract instance with signer
-          const usdcContractWithSigner = usdcContract.connect(signer);
+          const usdcContractWithSigner = usdcContract.connect(signer) as any;
           
           // Mint USDC
           console.log(`Minting ${ethers.formatUnits(airdropAmount, 6)} USDC to ${address}...`);

@@ -118,7 +118,10 @@ export class SimpleContractSetupService {
       console.error('Error details:', error);
       
       // For testing, if transfer fails due to insufficient balance, proceed anyway
-      if (error.message.includes('execution reverted') || error.message.includes('insufficient balance')) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('execution reverted') || error.message.includes('insufficient balance'))
+      ) {
         console.log(`[CONTRACT] Transfer failed due to insufficient balance`);
         console.log(`[CONTRACT] For testing, proceeding anyway (like reference implementation)`);
         console.log(`[CONTRACT] In production, user wallet should have USDC`);
