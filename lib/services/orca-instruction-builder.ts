@@ -50,20 +50,44 @@ export class OrcaInstructionBuilder {
     // Create real wallet from private key (like reference implementation)
     let wallet;
     try {
-      // Parse private key (support both base58 and hex formats)
+      // Parse private key (support multiple formats)
       let privateKeyBytes: Uint8Array;
+      
+      console.log('Parsing private key format...');
+      console.log('Private key length:', solanaPrivateKey.length);
+      console.log('Private key starts with:', solanaPrivateKey.substring(0, 10) + '...');
+      
       if (solanaPrivateKey.startsWith('[') || solanaPrivateKey.includes(',')) {
         // Array format: [1,2,3,...]
+        console.log('Detected array format');
         privateKeyBytes = new Uint8Array(JSON.parse(solanaPrivateKey));
       } else if (solanaPrivateKey.length === 88) {
-        // Base58 format - use Buffer directly
-        privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey, 'base64'));
+        // Base58 format (most common for Solana)
+        console.log('Detected base58 format');
+        const bs58 = await import('bs58');
+        privateKeyBytes = bs58.decode(solanaPrivateKey);
       } else if (solanaPrivateKey.startsWith('0x')) {
-        // Hex format
+        // Hex format with 0x prefix
+        console.log('Detected hex format with 0x');
         privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey.slice(2), 'hex'));
-      } else {
-        // Assume hex without 0x
+      } else if (solanaPrivateKey.length === 128) {
+        // Hex format without 0x (64 bytes = 128 hex chars)
+        console.log('Detected hex format without 0x');
         privateKeyBytes = new Uint8Array(Buffer.from(solanaPrivateKey, 'hex'));
+      } else {
+        // Try base58 as fallback
+        console.log('Trying base58 as fallback');
+        try {
+          const bs58 = await import('bs58');
+          privateKeyBytes = bs58.decode(solanaPrivateKey);
+        } catch (e) {
+          throw new Error(`Unsupported private key format. Length: ${solanaPrivateKey.length}. Please provide base58 or hex format.`);
+        }
+      }
+      
+      console.log('Private key bytes length:', privateKeyBytes.length);
+      if (privateKeyBytes.length !== 64) {
+        throw new Error(`Invalid private key length: ${privateKeyBytes.length}. Expected 64 bytes.`);
       }
 
       const keypair = Keypair.fromSecretKey(privateKeyBytes);
