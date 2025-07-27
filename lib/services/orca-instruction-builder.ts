@@ -57,10 +57,10 @@ export class OrcaInstructionBuilder {
       // Create provider with proper Solana connection (matching reference implementation)
       const connection = new web3.Connection(ENVIRONMENT_CONFIG.SOLANA.RPC_URL, 'confirmed');
       
-      // Use real MetaMask-derived Solana address if available, otherwise fallback to dummy
+      // Use real Solana address for instruction building
       let wallet;
       if (params.solanaAddress) {
-        console.log('Using real MetaMask-derived Solana address:', params.solanaAddress);
+        console.log('Using real Solana address for instruction building:', params.solanaAddress);
         const realPublicKey = new web3.PublicKey(params.solanaAddress);
         wallet = {
           publicKey: realPublicKey,
@@ -125,14 +125,21 @@ export class OrcaInstructionBuilder {
       ).publicKey;
       
       console.log('Whirlpool pubkey:', whirlpool_pubkey.toBase58());
+      console.log('Whirlpools config:', ENVIRONMENT_CONFIG.ORCA.WHIRLPOOLS_CONFIG);
+      console.log('Token A (USDC):', TokenA.mint.toBase58());
+      console.log('Token B (SAMO):', TokenB.mint.toBase58());
+      console.log('Tick spacing:', tickSpacing);
       
       // Try to get the whirlpool with error handling for AdaptiveFeeTier
       let whirlpool: any;
       try {
+        console.log('Attempting to fetch whirlpool from Solana...');
         whirlpool = await client.getPool(whirlpool_pubkey);
         console.log('Whirlpool fetched successfully');
       } catch (error: any) {
         console.error('Error fetching whirlpool:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
         
         // If it's an AdaptiveFeeTier error, try alternative approach
         if (error.message && error.message.includes('AdaptiveFeeTier')) {
